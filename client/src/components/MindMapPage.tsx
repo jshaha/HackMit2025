@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Edit2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import AddNodeSidebar from './AddNodeSidebar';
 import NodeDetailsModal from './NodeDetailsModal';
 import MindMapNode from './MindMapNode';
@@ -62,8 +66,20 @@ const initialNodes: ReactFlowMindMapNode[] = [
 ];
 
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', type: 'smoothstep' },
-  { id: 'e1-3', source: '1', target: '3', type: 'smoothstep' },
+  { 
+    id: 'e1-2', 
+    source: '1', 
+    target: '2', 
+    type: 'smoothstep',
+    style: { stroke: '#94a3b8', strokeWidth: 2 }
+  },
+  { 
+    id: 'e1-3', 
+    source: '1', 
+    target: '3', 
+    type: 'smoothstep',
+    style: { stroke: '#94a3b8', strokeWidth: 2 }
+  },
 ];
 
 export default function MindMapPage() {
@@ -73,9 +89,20 @@ export default function MindMapPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNodes, setFilteredNodes] = useState(initialNodes);
+  const [mindMapTitle, setMindMapTitle] = useState('My Research Mind Map');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState(mindMapTitle);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        type: 'smoothstep' as const,
+        style: { stroke: '#94a3b8', strokeWidth: 2 }
+      };
+      
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
 
@@ -88,7 +115,6 @@ export default function MindMapPage() {
       position: nodeData.position,
     };
     setSelectedNode(node);
-    setIsModalOpen(true);
   }, []);
 
   const addNode = useCallback((nodeData: InsertMindMapNode) => {
@@ -130,6 +156,30 @@ export default function MindMapPage() {
     // This would integrate with an actual AI service
   }, []);
 
+  // Handle title editing
+  const handleTitleEdit = useCallback(() => {
+    setIsEditingTitle(true);
+    setTempTitle(mindMapTitle);
+  }, [mindMapTitle]);
+
+  const handleTitleSave = useCallback(() => {
+    setMindMapTitle(tempTitle);
+    setIsEditingTitle(false);
+  }, [tempTitle]);
+
+  const handleTitleCancel = useCallback(() => {
+    setTempTitle(mindMapTitle);
+    setIsEditingTitle(false);
+  }, [mindMapTitle]);
+
+  const handleTitleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      handleTitleCancel();
+    }
+  }, [handleTitleSave, handleTitleCancel]);
+
   // Update existing nodes with click handlers and filter based on search
   const updatedNodes = (searchQuery ? filteredNodes : nodes).map(node => ({
     ...node,
@@ -140,53 +190,135 @@ export default function MindMapPage() {
   }));
 
   return (
-    <div className="h-screen w-full flex bg-background" data-testid="page-mind-map">
-      <AddNodeSidebar 
-        onAddNode={addNode} 
-        onSearch={handleSearch}
-        onAskAi={handleAskAi}
-      />
-      
-      <div className="flex-1 relative">
-        {searchQuery && filteredNodes.length === 0 && (
-          <div className="absolute top-4 left-4 z-10 bg-card border border-border rounded-lg p-3 shadow-sm">
-            <p className="text-sm text-muted-foreground">No nodes found matching "{searchQuery}"</p>
+    <div className="h-screen w-full bg-background" data-testid="page-mind-map">
+      <PanelGroup direction="horizontal">
+        <Panel defaultSize={25} minSize={20} maxSize={40}>
+          <div style={{ backgroundColor: '#F5F5F5' }} className="h-full">
+            <AddNodeSidebar 
+              onAddNode={addNode} 
+              onSearch={handleSearch}
+              onAskAi={handleAskAi}
+            />
           </div>
-        )}
-        <ReactFlow
-          nodes={updatedNodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          className="bg-background"
-          data-testid="canvas-react-flow"
-        >
-          <Background color="#94a3b8" gap={16} />
-          <Controls className="bg-card border border-border rounded-lg shadow-sm" />
-          <MiniMap 
-            className="bg-card border border-border rounded-lg"
-            nodeColor={(node) => {
-              switch (node.data?.type) {
-                case 'Concept': return 'hsl(var(--chart-1))';
-                case 'Paper': return 'hsl(var(--chart-2))';
-                case 'Dataset': return 'hsl(var(--chart-3))';
-                default: return 'hsl(var(--muted))';
-              }
-            }}
-          />
-        </ReactFlow>
-      </div>
+        </Panel>
+        
+        <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors cursor-col-resize flex items-center justify-center group">
+          <div className="w-0.5 h-6 bg-border group-hover:bg-primary/40 rounded-full transition-colors" />
+        </PanelResizeHandle>
 
-      <NodeDetailsModal 
-        node={selectedNode}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedNode(null);
-        }}
-      />
+        {selectedNode && (
+          <>
+            <Panel defaultSize={25} minSize={20} maxSize={40}>
+              <div className="border-r border-border h-full overflow-y-auto flex flex-col" style={{ backgroundColor: '#F5F5F5' }} data-testid="sidebar-node-details">
+                {/* Header */}
+                <div className="p-4 border-b border-border flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Node Details</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedNode(null)}
+                    className="h-6 w-6"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {/* Content */}
+                <div className="p-4 flex-1">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Title</label>
+                      <h3 className="text-lg font-semibold mt-1">{selectedNode.title}</h3>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Type</label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          selectedNode.type === 'Concept' ? 'text-black' :
+                          selectedNode.type === 'Paper' ? 'text-white' :
+                          'text-white'
+                        }`}
+                        style={{
+                          backgroundColor: selectedNode.type === 'Concept' ? '#C2F8CB' :
+                                         selectedNode.type === 'Paper' ? '#8367C7' :
+                                         '#5603AD'
+                        }}>
+                          {selectedNode.type}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Description</label>
+                      <p className="text-sm mt-1 leading-relaxed">{selectedNode.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Panel>
+            
+            <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors cursor-col-resize flex items-center justify-center group">
+              <div className="w-0.5 h-6 bg-border group-hover:bg-primary/40 rounded-full transition-colors" />
+            </PanelResizeHandle>
+          </>
+        )}
+        
+        <Panel defaultSize={75}>
+          <div className="h-full relative">
+            {/* Mind Map Title */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 group">
+              {isEditingTitle ? (
+                <Input
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onKeyDown={handleTitleKeyDown}
+                  onBlur={handleTitleSave}
+                  className="text-lg font-semibold text-center bg-transparent border-0 focus-visible:ring-0 shadow-none"
+                  autoFocus
+                />
+              ) : (
+                <div className="flex items-center gap-2 cursor-pointer">
+                  <h1 className="text-lg font-semibold text-foreground">{mindMapTitle}</h1>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={handleTitleEdit}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {searchQuery && filteredNodes.length === 0 && (
+              <div className="absolute top-4 left-4 z-10 bg-card border border-border rounded-lg p-3 shadow-sm">
+                <p className="text-sm text-muted-foreground">No nodes found matching "{searchQuery}"</p>
+              </div>
+            )}
+            <ReactFlow
+              nodes={updatedNodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              nodeTypes={nodeTypes}
+              className="bg-background"
+              data-testid="canvas-react-flow"
+            >
+              <Background color="#94a3b8" gap={16} />
+              <Controls className="bg-card border border-border rounded-lg shadow-sm" />
+              <MiniMap 
+                className="bg-card border border-border rounded-lg"
+                nodeColor={(node) => {
+                  return '#F0F0F0';
+                }}
+              />
+            </ReactFlow>
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }
