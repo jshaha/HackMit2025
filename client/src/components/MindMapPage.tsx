@@ -1,16 +1,16 @@
 import { useState, useCallback } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge, Node } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Node } from 'reactflow';
+import 'reactflow/dist/style.css';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Edit2, X } from 'lucide-react';
+import { Edit2, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AddNodeSidebar from './AddNodeSidebar';
-import NodeDetailsModal from './NodeDetailsModal';
 import MindMapNode from './MindMapNode';
-import SearchBar from './SearchBar';
-import AiPlaceholder from './AiPlaceholder';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
+import { nodeTypes as schemaNodeTypes } from '@shared/schema';
 
 // Define the node data type
 type MindMapNodeData = {
@@ -86,12 +86,13 @@ export default function MindMapPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<MindMapNodeType | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredNodes, setFilteredNodes] = useState(initialNodes);
+  const [filteredNodes, setFilteredNodes] = useState<ReactFlowMindMapNode[]>(initialNodes);
   const [mindMapTitle, setMindMapTitle] = useState('My Research Mind Map');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(mindMapTitle);
+  const [isEditingNode, setIsEditingNode] = useState(false);
+  const [editingNodeData, setEditingNodeData] = useState<MindMapNodeType | null>(null);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -180,6 +181,85 @@ export default function MindMapPage() {
     }
   }, [handleTitleSave, handleTitleCancel]);
 
+  // Handle node deletion with edge reconnection
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    // Find edges connected to this node
+    const connectedEdges = edges.filter(edge => 
+      edge.source === nodeId || edge.target === nodeId
+    );
+    
+    // Find parent and child nodes
+    const parentEdges = connectedEdges.filter(edge => edge.target === nodeId);
+    const childEdges = connectedEdges.filter(edge => edge.source === nodeId);
+    
+    // Create new edges connecting parents to children
+    const newEdges: any[] = [];
+    parentEdges.forEach(parentEdge => {
+      childEdges.forEach(childEdge => {
+        newEdges.push({
+          id: `reconnect-${parentEdge.source}-${childEdge.target}`,
+          source: parentEdge.source,
+          target: childEdge.target,
+          type: 'default',
+          style: { stroke: '#94a3b8', strokeWidth: 2 }
+        });
+      });
+    });
+    
+    // Update state
+    setNodes(nodes => nodes.filter(node => node.id !== nodeId));
+    setEdges(edges => [
+      ...edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId),
+      ...newEdges
+    ]);
+    setSelectedNode(null); // Close sidebar
+  }, [edges, setNodes, setEdges]);
+
+  // Handle node editing
+  const handleEditNode = useCallback(() => {
+    if (selectedNode) {
+      setIsEditingNode(true);
+      setEditingNodeData({ ...selectedNode });
+    }
+  }, [selectedNode]);
+
+  const handleSaveNodeEdit = useCallback(() => {
+    if (editingNodeData) {
+      // Update the node in React Flow
+      setNodes(nodes => nodes.map(node => 
+        node.id === editingNodeData.id 
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                title: editingNodeData.title,
+                type: editingNodeData.type,
+                description: editingNodeData.description
+              }
+            }
+          : node
+      ));
+      
+      setSelectedNode(editingNodeData);
+      setIsEditingNode(false);
+      setEditingNodeData(null);
+    }
+  }, [editingNodeData, setNodes]);
+
+  const handleCancelNodeEdit = useCallback(() => {
+    setIsEditingNode(false);
+    setEditingNodeData(null);
+  }, []);
+
+  const handleEditingNodeChange = useCallback((field: keyof MindMapNodeType, value: any) => {
+    if (editingNodeData) {
+      setEditingNodeData({
+        ...editingNodeData,
+        [field]: value
+      });
+    }
+  }, [editingNodeData]);
+
   // Update existing nodes with click handlers and filter based on search
   const updatedNodes = (searchQuery ? filteredNodes : nodes).map(node => ({
     ...node,
@@ -213,46 +293,132 @@ export default function MindMapPage() {
                 {/* Header */}
                 <div className="p-4 border-b border-border flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Node Details</h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedNode(null)}
-                    className="h-6 w-6"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {isEditingNode ? (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleSaveNodeEdit}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelNodeEdit}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleEditNode}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteNode(selectedNode.id)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedNode(null)}
+                      className="h-6 w-6"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Content */}
                 <div className="p-4 flex-1">
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Title</label>
-                      <h3 className="text-lg font-semibold mt-1">{selectedNode.title}</h3>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Type</label>
-                      <div className="mt-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          selectedNode.type === 'Concept' ? 'text-black' :
-                          selectedNode.type === 'Paper' ? 'text-white' :
-                          'text-white'
-                        }`}
-                        style={{
-                          backgroundColor: selectedNode.type === 'Concept' ? '#C2F8CB' :
-                                         selectedNode.type === 'Paper' ? '#8367C7' :
-                                         '#5603AD'
-                        }}>
-                          {selectedNode.type}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Description</label>
-                      <p className="text-sm mt-1 leading-relaxed">{selectedNode.description}</p>
-                    </div>
+                    {isEditingNode && editingNodeData ? (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Title</label>
+                          <Input
+                            value={editingNodeData.title}
+                            onChange={(e) => handleEditingNodeChange('title', e.target.value)}
+                            className="mt-1"
+                            placeholder="Enter node title..."
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Type</label>
+                          <Select
+                            value={editingNodeData.type}
+                            onValueChange={(value) => handleEditingNodeChange('type', value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select node type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {schemaNodeTypes.map((type: string) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Description</label>
+                          <Textarea
+                            value={editingNodeData.description}
+                            onChange={(e) => handleEditingNodeChange('description', e.target.value)}
+                            className="mt-1 resize-none min-h-20"
+                            placeholder="Describe this node..."
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Title</label>
+                          <h3 className="text-lg font-semibold mt-1">{selectedNode.title}</h3>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Type</label>
+                          <div className="mt-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              selectedNode.type === 'Concept' ? 'text-black' :
+                              selectedNode.type === 'Paper' ? 'text-white' :
+                              'text-white'
+                            }`}
+                            style={{
+                              backgroundColor: selectedNode.type === 'Concept' ? '#C2F8CB' :
+                                             selectedNode.type === 'Paper' ? '#8367C7' :
+                                             '#5603AD'
+                            }}>
+                              {selectedNode.type}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Description</label>
+                          <p className="text-sm mt-1 leading-relaxed">{selectedNode.description}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -311,9 +477,7 @@ export default function MindMapPage() {
               <Controls className="bg-card border border-border rounded-lg shadow-sm" />
               <MiniMap 
                 className="bg-card border border-border rounded-lg"
-                nodeColor={(node) => {
-                  return '#F0F0F0';
-                }}
+                nodeColor={() => '#F0F0F0'}
               />
             </ReactFlow>
           </div>
