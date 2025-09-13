@@ -1,4 +1,4 @@
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position } from 'reactflow';
 import { cn } from '@/lib/utils';
 import type { NodeType } from '@shared/schema';
 
