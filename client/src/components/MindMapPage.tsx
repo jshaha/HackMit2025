@@ -4,6 +4,8 @@ import '@xyflow/react/dist/style.css';
 import AddNodeSidebar from './AddNodeSidebar';
 import NodeDetailsModal from './NodeDetailsModal';
 import MindMapNode from './MindMapNode';
+import SearchBar from './SearchBar';
+import AiPlaceholder from './AiPlaceholder';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 
 // Define the node data type
@@ -60,8 +62,8 @@ const initialNodes: ReactFlowMindMapNode[] = [
 ];
 
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', type: 'bezier' },
-  { id: 'e1-3', source: '1', target: '3', type: 'bezier' },
+  { id: 'e1-2', source: '1', target: '2', type: 'smoothstep' },
+  { id: 'e1-3', source: '1', target: '3', type: 'smoothstep' },
 ];
 
 export default function MindMapPage() {
@@ -69,6 +71,8 @@ export default function MindMapPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<MindMapNodeType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredNodes, setFilteredNodes] = useState(initialNodes);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
@@ -104,8 +108,30 @@ export default function MindMapPage() {
     setNodes((nds) => [...nds, newNode]);
   }, [setNodes, handleNodeClick]);
 
-  // Update existing nodes with click handlers
-  const updatedNodes = nodes.map(node => ({
+  // Handle search functionality
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredNodes(nodes);
+      return;
+    }
+    
+    const filtered = nodes.filter(node => 
+      node.data.title.toLowerCase().includes(query.toLowerCase()) ||
+      node.data.type.toLowerCase().includes(query.toLowerCase()) ||
+      node.data.description.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredNodes(filtered);
+  }, [nodes]);
+
+  // Handle AI questions
+  const handleAskAi = useCallback((question: string) => {
+    console.log('AI question received:', question);
+    // This would integrate with an actual AI service
+  }, []);
+
+  // Update existing nodes with click handlers and filter based on search
+  const updatedNodes = (searchQuery ? filteredNodes : nodes).map(node => ({
     ...node,
     data: {
       ...node.data,
@@ -115,7 +141,11 @@ export default function MindMapPage() {
 
   return (
     <div className="h-screen w-full flex bg-background" data-testid="page-mind-map">
-      <AddNodeSidebar onAddNode={addNode} />
+      <AddNodeSidebar 
+        onAddNode={addNode} 
+        onSearch={handleSearch}
+        onAskAi={handleAskAi}
+      />
       
       <div className="flex-1 relative">
         <ReactFlow
