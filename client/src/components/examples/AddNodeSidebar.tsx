@@ -6,9 +6,21 @@ export default function AddNodeSidebarExample() {
     console.log('New node added:', node);
   };
 
+  const handleSearch = (query: string) => {
+    console.log('Search query:', query);
+  };
+
+  const handleAskAi = (question: string) => {
+    console.log('AI question:', question);
+  };
+
   return (
     <div className="h-screen bg-background">
-      <AddNodeSidebar onAddNode={handleAddNode} />
+      <AddNodeSidebar 
+        onAddNode={handleAddNode} 
+        onSearch={handleSearch}
+        onAskAi={handleAskAi}
+      />
     </div>
   );
 }

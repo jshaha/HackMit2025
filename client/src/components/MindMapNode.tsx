@@ -1,5 +1,4 @@
 import { Handle, Position } from '@xyflow/react';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { NodeType } from '@shared/schema';
 
@@ -31,22 +30,22 @@ export default function MindMapNode({ data }: MindMapNodeProps) {
         position={Position.Bottom}
         className="w-3 h-3 bg-muted-foreground border-2 border-background"
       />
-      <Card 
+      <div 
         className={cn(
-          'min-w-32 min-h-16 p-4 cursor-pointer transition-all duration-200 hover:shadow-md',
+          'w-20 h-20 rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md',
           'border-2 text-white',
           nodeTypeColors[data.type]
         )}
         onClick={data.onClick}
         data-testid={`node-${data.type.toLowerCase()}-${data.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <div className="text-sm font-semibold text-center">
-          {data.title}
+        <div className="text-xs font-semibold text-center px-2 leading-tight">
+          {data.title.length > 12 ? data.title.substring(0, 12) + '...' : data.title}
         </div>
-        <div className="text-xs text-center mt-1 opacity-90">
+        <div className="text-[10px] text-center mt-1 opacity-90">
           {data.type}
         </div>
-      </Card>
+      </div>
     </>
   );
 }

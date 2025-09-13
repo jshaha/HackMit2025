@@ -7,14 +7,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import { insertMindMapNodeSchema, nodeTypes, type InsertMindMapNode } from '@shared/schema';
+import SearchBar from './SearchBar';
+import AiPlaceholder from './AiPlaceholder';
 
 interface AddNodeSidebarProps {
   onAddNode: (node: InsertMindMapNode) => void;
+  onSearch: (query: string) => void;
+  onAskAi: (question: string) => void;
 }
 
-export default function AddNodeSidebar({ onAddNode }: AddNodeSidebarProps) {
+export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi }: AddNodeSidebarProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<InsertMindMapNode>({
@@ -46,7 +50,13 @@ export default function AddNodeSidebar({ onAddNode }: AddNodeSidebarProps) {
   };
 
   return (
-    <div className="w-80 bg-card border-r border-border h-full overflow-y-auto" data-testid="sidebar-add-node">
+    <div className="w-80 bg-card border-r border-border h-full overflow-y-auto flex flex-col" data-testid="sidebar-add-node">
+      {/* Search Bar */}
+      <div className="p-4 border-b border-border">
+        <SearchBar onSearch={onSearch} placeholder="Search nodes..." />
+      </div>
+      
+      {/* Add Node Form */}
       <Card className="m-4 border-0 shadow-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -132,6 +142,11 @@ export default function AddNodeSidebar({ onAddNode }: AddNodeSidebarProps) {
           </Form>
         </CardContent>
       </Card>
+      
+      {/* AI Placeholder */}
+      <div className="p-4 mt-auto">
+        <AiPlaceholder onAskAi={onAskAi} />
+      </div>
     </div>
   );
 }
