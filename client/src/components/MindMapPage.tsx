@@ -1,10 +1,21 @@
 import { useState, useCallback } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import AddNodeSidebar from './AddNodeSidebar';
 import NodeDetailsModal from './NodeDetailsModal';
 import MindMapNode from './MindMapNode';
-import type { MindMapNode as MindMapNodeType, InsertMindMapNode } from '@shared/schema';
+import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
+
+// Define the node data type
+type MindMapNodeData = {
+  title: string;
+  type: NodeType;
+  description: string;
+  onClick: () => void;
+};
+
+// Define the React Flow node type
+type ReactFlowMindMapNode = Node<MindMapNodeData, 'mindMapNode'>;
 
 // Register custom node types
 const nodeTypes = {
@@ -12,7 +23,7 @@ const nodeTypes = {
 };
 
 // Example data - 3 nodes and 2 edges as requested
-const initialNodes = [
+const initialNodes: ReactFlowMindMapNode[] = [
   {
     id: '1',
     type: 'mindMapNode',
@@ -49,8 +60,8 @@ const initialNodes = [
 ];
 
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2', type: 'smoothstep' },
-  { id: 'e1-3', source: '1', target: '3', type: 'smoothstep' },
+  { id: 'e1-2', source: '1', target: '2', type: 'bezier' },
+  { id: 'e1-3', source: '1', target: '3', type: 'bezier' },
 ];
 
 export default function MindMapPage() {
@@ -78,9 +89,9 @@ export default function MindMapPage() {
 
   const addNode = useCallback((nodeData: InsertMindMapNode) => {
     const id = `node-${Date.now()}`;
-    const newNode = {
+    const newNode: ReactFlowMindMapNode = {
       id,
-      type: 'mindMapNode' as const,
+      type: 'mindMapNode',
       position: nodeData.position,
       data: {
         title: nodeData.title,
