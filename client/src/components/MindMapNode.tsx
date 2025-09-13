@@ -33,7 +33,7 @@ export default function MindMapNode({ data }: MindMapNodeProps) {
       <div 
         className={cn(
           'w-20 h-20 rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md',
-          'border-2 text-white',
+          'border-2 text-foreground',
           nodeTypeColors[data.type]
         )}
         onClick={data.onClick}

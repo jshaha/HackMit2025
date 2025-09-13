@@ -14,9 +14,9 @@ interface NodeDetailsModalProps {
 }
 
 const nodeTypeBadgeColors = {
-  Concept: 'bg-chart-1 text-white hover:bg-chart-1/90',
-  Paper: 'bg-chart-2 text-white hover:bg-chart-2/90',
-  Dataset: 'bg-chart-3 text-white hover:bg-chart-3/90',
+  Concept: 'bg-chart-1 text-foreground hover:bg-chart-1/90',
+  Paper: 'bg-chart-2 text-foreground hover:bg-chart-2/90',
+  Dataset: 'bg-chart-3 text-foreground hover:bg-chart-3/90',
 };
 
 export default function NodeDetailsModal({ node, isOpen, onClose }: NodeDetailsModalProps) {
@@ -24,7 +24,7 @@ export default function NodeDetailsModal({ node, isOpen, onClose }: NodeDetailsM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md" data-testid="modal-node-details">
+      <DialogContent className="max-w-md" data-testid="modal-node-details" aria-describedby="node-description">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold flex items-center gap-2">
             {node.title}
@@ -40,7 +40,7 @@ export default function NodeDetailsModal({ node, isOpen, onClose }: NodeDetailsM
         <div className="space-y-4">
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Description</h4>
-            <p className="text-sm leading-relaxed" data-testid="text-description">
+            <p className="text-sm leading-relaxed" data-testid="text-description" id="node-description">
               {node.description || 'No description provided.'}
             </p>
           </div>

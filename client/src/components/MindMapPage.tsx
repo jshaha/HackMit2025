@@ -148,6 +148,11 @@ export default function MindMapPage() {
       />
       
       <div className="flex-1 relative">
+        {searchQuery && filteredNodes.length === 0 && (
+          <div className="absolute top-4 left-4 z-10 bg-card border border-border rounded-lg p-3 shadow-sm">
+            <p className="text-sm text-muted-foreground">No nodes found matching "{searchQuery}"</p>
+          </div>
+        )}
         <ReactFlow
           nodes={updatedNodes}
           edges={edges}
