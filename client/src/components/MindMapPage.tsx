@@ -70,14 +70,14 @@ const initialEdges = [
     id: 'e1-2', 
     source: '1', 
     target: '2', 
-    type: 'smoothstep',
+    type: 'default',
     style: { stroke: '#94a3b8', strokeWidth: 2 }
   },
   { 
     id: 'e1-3', 
     source: '1', 
     target: '3', 
-    type: 'smoothstep',
+    type: 'default',
     style: { stroke: '#94a3b8', strokeWidth: 2 }
   },
 ];
@@ -97,7 +97,7 @@ export default function MindMapPage() {
     (params: Connection) => {
       const newEdge = {
         ...params,
-        type: 'smoothstep' as const,
+        type: 'default' as const,
         style: { stroke: '#94a3b8', strokeWidth: 2 }
       };
       
