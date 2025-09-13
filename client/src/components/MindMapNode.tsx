@@ -28,11 +28,11 @@ export default function MindMapNode({ data }: MindMapNodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-3 h-3 bg-muted-foreground border-2 border-background"
+        className="w-3 h-3 bg-muted-foreground border-2 border-background z-10"
       />
       <div 
         className={cn(
-          'w-20 h-20 rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md',
+          'w-20 h-20 rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md relative',
           'border-2 text-foreground',
           nodeTypeColors[data.type]
         )}
@@ -45,10 +45,10 @@ export default function MindMapNode({ data }: MindMapNodeProps) {
         onClick={data.onClick}
         data-testid={`node-${data.type.toLowerCase()}-${data.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <div className="text-xs font-semibold text-center px-2 leading-tight text-gray-700">
-          {data.title.length > 12 ? data.title.substring(0, 12) + '...' : data.title}
+        <div className="text-xs font-semibold text-center leading-tight text-gray-700 whitespace-nowrap absolute left-1/2 transform -translate-x-1/2 top-6">
+          {data.title}
         </div>
-        <div className="text-[10px] text-center mt-1 opacity-90 text-gray-600">
+        <div className="text-[10px] text-center opacity-90 text-gray-600 absolute bottom-5 left-1/2 transform -translate-x-1/2">
           {data.type}
         </div>
       </div>
