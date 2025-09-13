@@ -12,9 +12,9 @@ interface MindMapNodeProps {
 }
 
 const nodeTypeColors = {
-  Concept: 'bg-chart-1 border-chart-1',
-  Paper: 'bg-chart-2 border-chart-2', 
-  Dataset: 'bg-chart-3 border-chart-3',
+  Concept: 'border-2',
+  Paper: 'border-2', 
+  Dataset: 'border-2',
 };
 
 export default function MindMapNode({ data }: MindMapNodeProps) {
@@ -36,13 +36,19 @@ export default function MindMapNode({ data }: MindMapNodeProps) {
           'border-2 text-foreground',
           nodeTypeColors[data.type]
         )}
+        style={{
+          backgroundColor: '#F0F0F0',
+          borderColor: data.type === 'Concept' ? '#C2F8CB' :
+                      data.type === 'Paper' ? '#8367C7' :
+                      '#5603AD'
+        }}
         onClick={data.onClick}
         data-testid={`node-${data.type.toLowerCase()}-${data.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <div className="text-xs font-semibold text-center px-2 leading-tight">
+        <div className="text-xs font-semibold text-center px-2 leading-tight text-gray-700">
           {data.title.length > 12 ? data.title.substring(0, 12) + '...' : data.title}
         </div>
-        <div className="text-[10px] text-center mt-1 opacity-90">
+        <div className="text-[10px] text-center mt-1 opacity-90 text-gray-600">
           {data.type}
         </div>
       </div>

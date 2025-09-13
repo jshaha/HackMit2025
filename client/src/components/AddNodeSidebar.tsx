@@ -50,17 +50,17 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi }: AddNode
   };
 
   return (
-    <div className="w-80 bg-card border-r border-border h-full overflow-y-auto flex flex-col" data-testid="sidebar-add-node">
+    <div className="border-r border-border h-full overflow-y-auto flex flex-col" data-testid="sidebar-add-node">
       {/* Search Bar */}
       <div className="p-4 border-b border-border">
         <SearchBar onSearch={onSearch} placeholder="Search nodes..." />
       </div>
       
       {/* Add Node Form */}
-      <Card className="m-4 border-0 shadow-sm">
+      <Card className="m-4 border-0 shadow-sm" style={{ backgroundColor: '#E5E5E5' }}>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Plus className="w-5 h-5 text-primary" />
+            <Plus className="w-5 h-5" style={{ color: '#5603AD' }} />
             Add New Node
           </CardTitle>
         </CardHeader>
@@ -132,7 +132,8 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi }: AddNode
 
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full text-white hover:opacity-90"
+                style={{ backgroundColor: '#8367C7' }}
                 disabled={isSubmitting}
                 data-testid="button-add-node"
               >

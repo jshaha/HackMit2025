@@ -35,10 +35,10 @@ export default function AiPlaceholder({ onAskAi }: AiPlaceholderProps) {
   ];
 
   return (
-    <Card className="border-dashed border-2 border-muted-foreground/30 bg-muted/20" data-testid="ai-placeholder">
+    <Card className="border-dashed border-2" style={{ borderColor: '#8367C7', backgroundColor: '#E5E5E5' }} data-testid="ai-placeholder">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-          <Sparkles className="w-4 h-4" />
+        <CardTitle className="text-sm font-medium flex items-center gap-2" style={{ color: '#5603AD' }}>
+          <Sparkles className="w-4 h-4" style={{ color: '#5603AD' }} />
           Ask AI about your mind map
         </CardTitle>
       </CardHeader>
@@ -56,6 +56,8 @@ export default function AiPlaceholder({ onAskAi }: AiPlaceholderProps) {
           <Button 
             type="submit" 
             size="icon" 
+            className="text-white hover:opacity-90"
+            style={{ backgroundColor: '#5603AD' }}
             disabled={!question.trim() || isThinking}
             data-testid="button-ask-ai"
           >
@@ -75,7 +77,8 @@ export default function AiPlaceholder({ onAskAi }: AiPlaceholderProps) {
                 key={index}
                 variant="outline"
                 size="sm"
-                className="text-xs h-6 px-2"
+                className="text-xs h-6 px-2 hover:opacity-90"
+                style={{ borderColor: '#8367C7', color: '#5603AD', backgroundColor: 'transparent' }}
                 onClick={() => setQuestion(suggestion)}
                 disabled={isThinking}
                 data-testid={`button-suggestion-${index}`}

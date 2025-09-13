@@ -23,8 +23,8 @@ export default function SearchBar({ onSearch, placeholder = 'Search nodes...' }:
 
   return (
     <form onSubmit={handleSubmit} className="relative" data-testid="search-bar">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+      <div className="relative flex items-center">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10 pointer-events-none" />
         <Input
           type="text"
           placeholder={placeholder}
@@ -33,20 +33,15 @@ export default function SearchBar({ onSearch, placeholder = 'Search nodes...' }:
             setQuery(e.target.value);
             onSearch(e.target.value); // Real-time search
           }}
-          className="pl-10 pr-10"
+          className="pl-10 pr-10 w-full"
           data-testid="input-search"
         />
         {query && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+          <X 
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground transition-colors z-10"
             onClick={handleClear}
             data-testid="button-clear-search"
-          >
-            <X className="w-3 h-3" />
-          </Button>
+          />
         )}
       </div>
     </form>
