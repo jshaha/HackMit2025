@@ -16,9 +16,10 @@ interface AddNodeSidebarProps {
   onAddNode: (node: InsertMindMapNode) => void;
   onSearch: (query: string) => void;
   onAskAi: (question: string) => void;
+  nodes?: any[]; // Mind map nodes for AI context
 }
 
-export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi }: AddNodeSidebarProps) {
+export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: AddNodeSidebarProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<InsertMindMapNode>({
@@ -146,7 +147,7 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi }: AddNode
       
       {/* AI Placeholder */}
       <div className="p-4 mt-auto">
-        <AiPlaceholder onAskAi={onAskAi} />
+        <AiPlaceholder onAskAi={onAskAi} nodes={nodes} />
       </div>
     </div>
   );

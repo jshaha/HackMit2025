@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AddNodeSidebar from './AddNodeSidebar';
 import MindMapNode from './MindMapNode';
+import AuthButtons from './AuthButtons';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 import { nodeTypes as schemaNodeTypes } from '@shared/schema';
 
@@ -358,6 +359,7 @@ export default function MindMapPage() {
               onAddNode={addNode} 
               onSearch={handleSearch}
               onAskAi={handleAskAi}
+              nodes={nodes}
             />
           </div>
         </Panel>
@@ -521,9 +523,14 @@ export default function MindMapPage() {
         
         <Panel defaultSize={75}>
           <div className="h-full relative">
+            {/* Auth Buttons - Top right */}
+            <div className="absolute top-4 right-4 z-10">
+              <AuthButtons />
+            </div>
+
             {/* AI Recommendations Button - Only show when node is selected */}
             {selectedNode && (
-              <div className="absolute top-4 right-4 z-10">
+              <div className="absolute top-16 right-4 z-10">
                 <Button
                   onClick={handleGetAiRecommendations}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"

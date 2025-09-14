@@ -3,28 +3,51 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageCircle, Send, Sparkles } from 'lucide-react';
+import { askClaude } from '@/lib/askClaude';
+import AiResponseModal from './AiResponseModal';
 
 interface AiPlaceholderProps {
-  onAskAi: (question: string) => void;
+  onAskAi?: (question: string) => void; // Optional for backward compatibility
+  nodes?: any[]; // Mind map nodes for context
 }
 
-export default function AiPlaceholder({ onAskAi }: AiPlaceholderProps) {
+export default function AiPlaceholder({ onAskAi, nodes }: AiPlaceholderProps) {
   const [question, setQuestion] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [response, setResponse] = useState('');
+  const [error, setError] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
     
     setIsThinking(true);
-    console.log('AI question asked:', question);
-    onAskAi(question);
+    setError('');
+    setResponse('');
     
-    // Simulate AI thinking time
-    setTimeout(() => {
+    try {
+      console.log('AI question asked:', question);
+      setCurrentQuestion(question);
+      
+      // Call the optional callback if provided
+      if (onAskAi) {
+        onAskAi(question);
+      }
+      
+      // Get actual AI response with nodes context
+      const aiResponse = await askClaude(question, nodes);
+      setResponse(aiResponse);
+      setShowModal(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to get response from AI';
+      setError(errorMessage);
+      console.error('AI Error:', err);
+    } finally {
       setIsThinking(false);
       setQuestion('');
-    }, 2000);
+    }
   };
 
   const suggestedQuestions = [
@@ -94,7 +117,22 @@ export default function AiPlaceholder({ onAskAi }: AiPlaceholderProps) {
             AI is thinking...
           </div>
         )}
+        
+        {error && (
+          <div className="text-xs text-red-500 mt-2 p-2 bg-red-50 rounded">
+            {error}
+          </div>
+        )}
       </CardContent>
+      
+      {/* AI Response Modal */}
+      <AiResponseModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        question={currentQuestion}
+        response={response}
+        isLoading={isThinking}
+      />
     </Card>
   );
 }
