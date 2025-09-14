@@ -12,6 +12,7 @@ import MindMapNode from './MindMapNode';
 import AuthButtons from './AuthButtons';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 import { nodeTypes as schemaNodeTypes } from '@shared/schema';
+import { getAiRecommendations, type AiRecommendation } from '@/lib/getAiRecommendations';
 
 // Define the node data type
 type MindMapNodeData = {
@@ -111,6 +112,7 @@ export default function MindMapPage() {
   );
 
   const handleNodeClick = useCallback((nodeData: any) => {
+    // Regular node click
     const node: MindMapNodeType = {
       id: nodeData.id,
       title: nodeData.data.title,
@@ -264,68 +266,212 @@ export default function MindMapPage() {
   }, [editingNodeData]);
 
   // AI Recommendation utilities
-  const handleGetAiRecommendations = useCallback(() => {
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<AiRecommendation[]>([]);
+  const [showAiRecommendations, setShowAiRecommendations] = useState(false);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const [showEdgeContextMenu, setShowEdgeContextMenu] = useState(false);
+  const [edgeContextMenuPosition, setEdgeContextMenuPosition] = useState({ x: 0, y: 0 });
+
+  const handleGetAiRecommendations = useCallback(async () => {
     if (!selectedNode) {
       console.log('No node selected for AI recommendations');
       return;
     }
     
-    // Generate hardcoded recommendation based on selected node
-    const hardcodedRecommendations = {
-      'Machine Learning': {
-        title: 'Neural Networks',
-        type: 'Concept' as const,
-        description: 'Deep learning architectures inspired by biological neural networks, fundamental to modern AI systems.',
-        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
-      },
-      'GPT-4 Paper': {
-        title: 'Transformer Architecture',
-        type: 'Paper' as const,
-        description: 'Attention is All You Need - the foundational paper introducing the transformer model architecture.',
-        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
-      },
-      'ImageNet': {
-        title: 'COCO Dataset',
-        type: 'Dataset' as const,
-        description: 'Common Objects in Context - large-scale object detection, segmentation, and captioning dataset.',
-        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
-      }
-    };
-    
-    const recommendation = hardcodedRecommendations[selectedNode.title as keyof typeof hardcodedRecommendations] || {
+    setIsLoadingRecommendations(true);
+    try {
+      // Get AI recommendations based on selected node and all nodes
+      const response = await getAiRecommendations(selectedNode, nodes);
+      
+      // Add recommendations as regular nodes with dotted edges
+      const timestamp = Date.now();
+      response.recommendations.forEach((rec, index) => {
+        const newNodeId = `rec-${timestamp}-${index}`;
+        const newNode: ReactFlowMindMapNode = {
+          id: newNodeId,
+          type: 'mindMapNode',
+          position: { 
+            x: selectedNode.position.x + 200 + (index * 180), 
+            y: selectedNode.position.y + 150 
+          },
+          data: {
+            title: rec.title,
+            type: rec.type,
+            description: rec.description,
+            isRecommendation: true,
+            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x: selectedNode.position.x + 200 + (index * 180), y: selectedNode.position.y + 150 } }),
+            onAccept: () => handleAcceptRecommendation(rec, newNodeId),
+          },
+        };
+        
+        // Add the recommended node
+        setNodes((nds) => [...nds, newNode]);
+        
+        // Create dotted edge from selected node to recommended node
+        const newEdge = {
+          id: `rec-edge-${timestamp}-${index}`,
+          source: selectedNode.id,
+          target: newNodeId,
+          type: 'default' as const,
+          style: { 
+            stroke: '#8b5cf6', 
+            strokeWidth: 2, 
+            strokeDasharray: '5,5',
+            opacity: 0.7
+          },
+          animated: true,
+        };
+        setEdges((eds) => [...eds, newEdge]);
+      });
+      
+      // Store recommendations for click handling
+      setAiRecommendations(response.recommendations.map((rec, index) => ({
+        ...rec,
+        nodeId: `rec-${timestamp}-${index}`
+      })));
+      
+    } catch (error) {
+      console.error('Failed to get AI recommendations:', error);
+      // Fallback to simple recommendations
+      const fallbackRecs = [
+        {
       title: 'Related Research',
       type: 'Concept' as const,
       description: 'A related concept that builds upon the selected node.',
-      position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
+          reasoning: 'This is a fallback recommendation when AI recommendations fail.'
+        },
+        {
+          title: 'Test Paper',
+          type: 'Paper' as const,
+          description: 'A test paper recommendation.',
+          reasoning: 'This is a test paper recommendation.'
+        },
+        {
+          title: 'Test Dataset',
+          type: 'Dataset' as const,
+          description: 'A test dataset recommendation.',
+          reasoning: 'This is a test dataset recommendation.'
+        }
+      ];
+      
+      // Add fallback recommendations as nodes
+      const timestamp = Date.now();
+      fallbackRecs.forEach((rec, index) => {
+        const newNodeId = `rec-${timestamp}-${index}`;
+        const newNode: ReactFlowMindMapNode = {
+          id: newNodeId,
+          type: 'mindMapNode',
+          position: { 
+            x: selectedNode.position.x + 200 + (index * 180), 
+            y: selectedNode.position.y + 150 
+          },
+          data: {
+            title: rec.title,
+            type: rec.type,
+            description: rec.description,
+            isRecommendation: true,
+            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x: selectedNode.position.x + 200 + (index * 180), y: selectedNode.position.y + 150 } }),
+            onAccept: () => handleAcceptRecommendation(rec, newNodeId),
+          },
+        };
+        
+        setNodes((nds) => [...nds, newNode]);
+        
+        const newEdge = {
+          id: `rec-edge-${timestamp}-${index}`,
+          source: selectedNode.id,
+          target: newNodeId,
+          type: 'default' as const,
+          style: { 
+            stroke: '#8b5cf6', 
+            strokeWidth: 2, 
+            strokeDasharray: '5,5',
+            opacity: 0.7
+          },
+          animated: true,
+        };
+        setEdges((eds) => [...eds, newEdge]);
+      });
+      
+      setAiRecommendations(fallbackRecs.map((rec, index) => ({
+        ...rec,
+        nodeId: `rec-${timestamp}-${index}`
+      })));
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  }, [selectedNode, nodes, addNode, setEdges]);
+
+
+  const handleDeclineAiRecommendations = useCallback(() => {
+    setShowAiRecommendations(false);
+    setAiRecommendations([]);
+  }, []);
+
+  // Handle accepting a recommendation (clicking Accept button)
+  const handleAcceptRecommendation = useCallback((recommendation: AiRecommendation, nodeId: string) => {
+    if (!selectedNode) return;
+    
+    // Convert to regular node
+    const newNodeId = `node-${Date.now()}`;
+    const newNode: InsertMindMapNode = {
+      title: recommendation.title,
+      type: recommendation.type,
+      description: recommendation.description,
+      position: { 
+        x: selectedNode.position.x + 150, 
+        y: selectedNode.position.y + 100 
+      }
     };
     
-    setRecommendedNode(recommendation);
-    setShowRecommendation(true);
-  }, [selectedNode]);
+    // Add as regular node
+    addNode(newNode);
+    
+    // Create solid edge from selected node to new node
+    const newEdge = {
+      id: `edge-${selectedNode.id}-${newNodeId}`,
+      source: selectedNode.id,
+      target: newNodeId,
+      type: 'default' as const,
+      style: { stroke: '#94a3b8', strokeWidth: 2 }
+    };
+    setEdges((eds) => [...eds, newEdge]);
+    
+    // Delete all recommendation nodes and edges
+    const recNodeIds = aiRecommendations.map(rec => rec.nodeId);
+    const recEdgeIds = aiRecommendations.map((_, index) => `rec-edge-${nodeId.split('-')[1]}-${index}`);
+    
+    setNodes((nds) => nds.filter(n => !recNodeIds.includes(n.id)));
+    setEdges((eds) => eds.filter(e => !recEdgeIds.includes(e.id)));
+    
+    // Clear recommendations
+    setAiRecommendations([]);
+  }, [aiRecommendations, selectedNode, addNode, setNodes, setEdges]);
 
-  // Handle recommendation accept/decline
-  const handleAcceptRecommendation = useCallback(() => {
-    if (recommendedNode && selectedNode) {
-      // Add the recommended node
-      addNode(recommendedNode);
-      
-      // Create edge from selected node to recommended node
-      const newEdge = {
-        id: `edge-${selectedNode.id}-${Date.now()}`,
-        source: selectedNode.id,
-        target: `node-${Date.now()}`,
-        type: 'default' as const,
-        style: { stroke: '#94a3b8', strokeWidth: 2 }
-      };
-      setEdges((eds) => [...eds, newEdge]);
-    }
-    setShowRecommendation(false);
-    setRecommendedNode(null);
-  }, [recommendedNode, selectedNode, addNode, setEdges]);
 
   const handleDeclineRecommendation = useCallback(() => {
     setShowRecommendation(false);
     setRecommendedNode(null);
+  }, []);
+
+  // Edge handling functions
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edgeId: string) => {
+    event.stopPropagation();
+    setSelectedEdge(edgeId);
+    setShowEdgeContextMenu(true);
+    setEdgeContextMenuPosition({ x: event.clientX, y: event.clientY });
+  }, []);
+
+  const handleDeleteEdge = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter(edge => edge.id !== edgeId));
+    setShowEdgeContextMenu(false);
+    setSelectedEdge(null);
+  }, [setEdges]);
+
+  const handleEdgeContextMenuClose = useCallback(() => {
+    setShowEdgeContextMenu(false);
+    setSelectedEdge(null);
   }, []);
 
   // Update existing nodes with click handlers and filter based on search
@@ -349,6 +495,10 @@ export default function MindMapPage() {
       },
     },
   }));
+
+  // Use regular nodes and edges (recommendations are added directly as nodes)
+  const allNodes = updatedNodes;
+  const allEdges = edges;
 
   return (
     <div className="h-screen w-full bg-background" data-testid="page-mind-map">
@@ -409,10 +559,11 @@ export default function MindMapPage() {
                           variant="secondary"
                           size="sm"
                           onClick={handleGetAiRecommendations}
+                          disabled={isLoadingRecommendations}
                           className="h-6 px-2 text-xs"
                         >
                           <Sparkles className="w-3 h-3 mr-1" />
-                          AI
+                          {isLoadingRecommendations ? 'Loading...' : 'AI'}
                         </Button>
                         <Button
                           variant="destructive"
@@ -631,12 +782,43 @@ export default function MindMapPage() {
                 </div>
               </div>
             )}
+
+            {/* Edge Context Menu */}
+            {showEdgeContextMenu && selectedEdge && (
+              <div 
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50"
+                style={{ 
+                  left: edgeContextMenuPosition.x, 
+                  top: edgeContextMenuPosition.y 
+                }}
+              >
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteEdge(selectedEdge)}
+                  className="w-full"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Connection
+                </Button>
+              </div>
+            )}
+
+            {/* Click outside to close edge context menu */}
+            {showEdgeContextMenu && (
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={handleEdgeContextMenuClose}
+              />
+            )}
+
             <ReactFlow
-              nodes={updatedNodes}
-              edges={edges}
+              nodes={allNodes}
+              edges={allEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onEdgeClick={handleEdgeClick}
               nodeTypes={nodeTypes}
               className="bg-background"
               data-testid="canvas-react-flow"

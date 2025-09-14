@@ -2,7 +2,8 @@ import { Handle, Position } from 'reactflow';
 import { cn } from '@/lib/utils';
 import { X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { NodeType } from '@shared/schema';
+// Define NodeType locally since @shared/schema import is not available
+type NodeType = 'Concept' | 'Paper' | 'Dataset' | 'Tool' | 'Person' | 'Organization' | 'Event' | 'Method';
 
 interface MindMapNodeProps {
   data: {
@@ -12,14 +13,22 @@ interface MindMapNodeProps {
     onClick: () => void;
     onDelete?: () => void;
     onAiRecommend?: () => void;
+    isRecommendation?: boolean;
+    reasoning?: string;
+    onAccept?: () => void;
   };
   id: string;
 }
 
-const nodeTypeColors = {
+const nodeTypeColors: Record<string, string> = {
   Concept: 'border-2',
   Paper: 'border-2', 
   Dataset: 'border-2',
+  Tool: 'border-2',
+  Person: 'border-2',
+  Organization: 'border-2',
+  Event: 'border-2',
+  Method: 'border-2',
 };
 
 export default function MindMapNode({ data, id }: MindMapNodeProps) {
@@ -39,25 +48,38 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
         {/* Main Node */}
         <div 
           className={cn(
-            'w-20 h-20 rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md relative',
+            'rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md relative',
             'border-2 text-foreground',
-            nodeTypeColors[data.type]
+            nodeTypeColors[data.type],
+            data.isRecommendation ? 'w-24 h-24 border-dashed border-purple-400 bg-purple-50' : 'w-20 h-20'
           )}
           style={{
-            backgroundColor: '#F0F0F0',
-            borderColor: data.type === 'Concept' ? '#C2F8CB' :
+            backgroundColor: data.isRecommendation ? '#F3E8FF' : '#F0F0F0',
+            borderColor: data.isRecommendation ? '#8b5cf6' :
+                        data.type === 'Concept' ? '#C2F8CB' :
                         data.type === 'Paper' ? '#8367C7' :
                         '#5603AD'
           }}
           onClick={data.onClick}
           data-testid={`node-${data.type.toLowerCase()}-${data.title.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <div className="text-xs font-semibold text-center leading-tight text-gray-700 whitespace-nowrap absolute left-1/2 transform -translate-x-1/2 top-6">
+          <div className={cn(
+            "font-semibold text-center leading-tight text-gray-700 whitespace-nowrap absolute left-1/2 transform -translate-x-1/2",
+            data.isRecommendation ? "text-sm top-7" : "text-xs top-6"
+          )}>
             {data.title}
           </div>
-          <div className="text-[10px] text-center opacity-90 text-gray-600 absolute bottom-5 left-1/2 transform -translate-x-1/2">
+          <div className={cn(
+            "text-center opacity-90 text-gray-600 absolute left-1/2 transform -translate-x-1/2",
+            data.isRecommendation ? "text-xs bottom-6" : "text-[10px] bottom-5"
+          )}>
             {data.type}
           </div>
+          {data.isRecommendation && (
+            <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-30">
+              AI Recommendation
+            </div>
+          )}
         </div>
 
         {/* Hover Delete Button - Top Right */}
@@ -72,6 +94,22 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
             }}
           >
             <X className="w-2.5 h-2.5" />
+          </Button>
+        )}
+
+        {/* Accept Button for Recommendations */}
+        {data.isRecommendation && data.onAccept && (
+          <Button
+            variant="default"
+            size="sm"
+            className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded shadow-lg z-20"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onAccept?.();
+            }}
+            data-testid={`accept-recommendation-${id}`}
+          >
+            Accept
           </Button>
         )}
 
