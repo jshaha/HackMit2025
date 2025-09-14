@@ -113,11 +113,23 @@ export default function MindMapPage() {
 
   const handleNodeClick = useCallback((nodeData: any) => {
     // Regular node click
+    console.log('Node clicked:', nodeData); // Debug log
+    
+    // Handle case where nodeData might not have data property
+    const nodeTitle = nodeData.data?.title || nodeData.title;
+    const nodeType = nodeData.data?.type || nodeData.type;
+    const nodeDescription = nodeData.data?.description || nodeData.description;
+    
+    if (!nodeTitle) {
+      console.error('Node data is missing title:', nodeData);
+      return;
+    }
+    
     const node: MindMapNodeType = {
       id: nodeData.id,
-      title: nodeData.data.title,
-      type: nodeData.data.type,
-      description: nodeData.data.description,
+      title: nodeTitle,
+      type: nodeType,
+      description: nodeDescription,
       position: nodeData.position,
     };
     setSelectedNode(node);
@@ -411,43 +423,84 @@ export default function MindMapPage() {
 
   // Handle accepting a recommendation (clicking Accept button)
   const handleAcceptRecommendation = useCallback((recommendation: AiRecommendation, nodeId: string) => {
-    if (!selectedNode) return;
+    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode });
     
-    // Convert to regular node
-    const newNodeId = `node-${Date.now()}`;
-    const newNode: InsertMindMapNode = {
-      title: recommendation.title,
-      type: recommendation.type,
-      description: recommendation.description,
-      position: { 
-        x: selectedNode.position.x + 150, 
-        y: selectedNode.position.y + 100 
+    if (!selectedNode) {
+      console.log('No selected node, returning');
+      return;
+    }
+    
+    // Find the accepted recommendation node to keep its position
+    // Use setNodes callback to get the most current nodes state
+    setNodes((currentNodes) => {
+      console.log('Current nodes in setNodes callback:', currentNodes);
+      
+      const acceptedNode = currentNodes.find(n => n.id === nodeId);
+      console.log('Found accepted node:', acceptedNode);
+      
+      if (!acceptedNode) {
+        console.log('No accepted node found with ID:', nodeId);
+        return currentNodes; // Return unchanged if node not found
       }
-    };
+      
+      // Convert the accepted recommendation node to a permanent node
+      const permanentNodeId = `node-${Date.now()}`;
+      const permanentNode: ReactFlowMindMapNode = {
+        id: permanentNodeId,
+        type: 'mindMapNode',
+        position: acceptedNode.position, // Keep the same position
+        data: {
+          title: recommendation.title,
+          type: recommendation.type,
+          description: recommendation.description,
+          // Remove isRecommendation flag and recommendation-specific handlers
+          onClick: () => handleNodeClick({ 
+            id: permanentNodeId, 
+            data: { title: recommendation.title, type: recommendation.type, description: recommendation.description }, 
+            position: acceptedNode.position 
+          }),
+        },
+      };
+      
+      // Remove all recommendation nodes and add the permanent node
+      // Find all recommendation nodes by checking for isRecommendation flag
+      const recNodes = currentNodes.filter(n => (n.data as any)?.isRecommendation);
+      const recNodeIds = recNodes.map(n => n.id);
+      console.log('Found recommendation nodes:', recNodes);
+      console.log('Removing recommendation node IDs:', recNodeIds);
+      
+      const filtered = currentNodes.filter(n => !recNodeIds.includes(n.id));
+      return [...filtered, permanentNode];
+    });
     
-    // Add as regular node
-    addNode(newNode);
-    
-    // Create solid edge from selected node to new node
-    const newEdge = {
-      id: `edge-${selectedNode.id}-${newNodeId}`,
-      source: selectedNode.id,
-      target: newNodeId,
-      type: 'default' as const,
-      style: { stroke: '#94a3b8', strokeWidth: 2 }
-    };
-    setEdges((eds) => [...eds, newEdge]);
-    
-    // Delete all recommendation nodes and edges
-    const recNodeIds = aiRecommendations.map(rec => rec.nodeId);
-    const recEdgeIds = aiRecommendations.map((_, index) => `rec-edge-${nodeId.split('-')[1]}-${index}`);
-    
-    setNodes((nds) => nds.filter(n => !recNodeIds.includes(n.id)));
-    setEdges((eds) => eds.filter(e => !recEdgeIds.includes(e.id)));
+    // Handle edges separately
+    const permanentNodeId = `node-${Date.now()}`;
+    setEdges((currentEdges) => {
+      // Create solid edge from selected node to the permanent node
+      const permanentEdge = {
+        id: `edge-${selectedNode.id}-${permanentNodeId}`,
+        source: selectedNode.id,
+        target: permanentNodeId,
+        type: 'default' as const,
+        style: { stroke: '#94a3b8', strokeWidth: 2 } // Standard solid edge styling
+      };
+      
+      // Remove all recommendation edges
+      // Find all edges that connect to recommendation nodes
+      const recEdgeIds = currentEdges.filter((e: any) => {
+        // Check if this edge targets a recommendation node by looking for edges with 'rec-' prefix
+        return e.target && e.target.startsWith('rec-');
+      }).map((e: any) => e.id);
+      
+      console.log('Removing recommendation edge IDs:', recEdgeIds);
+      
+      const filtered = currentEdges.filter(e => !recEdgeIds.includes(e.id));
+      return [...filtered, permanentEdge];
+    });
     
     // Clear recommendations
     setAiRecommendations([]);
-  }, [aiRecommendations, selectedNode, addNode, setNodes, setEdges]);
+  }, [aiRecommendations, selectedNode, setNodes, setEdges, handleNodeClick]);
 
 
   const handleDeclineRecommendation = useCallback(() => {
@@ -502,22 +555,22 @@ export default function MindMapPage() {
 
   return (
     <div className="h-screen w-full bg-background" data-testid="page-mind-map">
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={25} minSize={20} maxSize={40}>
-          <div style={{ backgroundColor: '#F5F5F5' }} className="h-full">
-            <AddNodeSidebar 
-              onAddNode={addNode} 
-              onSearch={handleSearch}
-              onAskAi={handleAskAi}
-              nodes={nodes}
-            />
-          </div>
+      <PanelGroup direction="horizontal" className="h-full">
+        <Panel defaultSize={20} minSize={15} maxSize={30}>
+          <AddNodeSidebar 
+            onAddNode={addNode}
+            onSearch={handleSearch}
+            onAskAi={handleAskAi}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
         </Panel>
         
         <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors cursor-col-resize flex items-center justify-center group">
           <div className="w-0.5 h-6 bg-border group-hover:bg-primary/40 rounded-full transition-colors" />
         </PanelResizeHandle>
 
+        {/* Node Details Sidebar - Only show when node is selected */}
         {selectedNode && (
           <>
             <Panel defaultSize={25} minSize={20} maxSize={40}>
@@ -551,12 +604,13 @@ export default function MindMapPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleEditNode}
-                          className="h-6 w-6 p-0"
+                          className="h-6 px-2 text-xs"
                         >
-                          <Edit2 className="w-3 h-3" />
+                          <Edit2 className="w-3 h-3 mr-1" />
+                          Edit
                         </Button>
                         <Button
-                          variant="secondary"
+                          variant="outline"
                           size="sm"
                           onClick={handleGetAiRecommendations}
                           disabled={isLoadingRecommendations}
@@ -597,25 +651,23 @@ export default function MindMapPage() {
                             value={editingNodeData.title}
                             onChange={(e) => handleEditingNodeChange('title', e.target.value)}
                             className="mt-1"
-                            placeholder="Enter node title..."
                           />
                         </div>
                         
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Type</label>
-                          <Select
-                            value={editingNodeData.type}
+                          <Select 
+                            value={editingNodeData.type} 
                             onValueChange={(value) => handleEditingNodeChange('type', value)}
                           >
                             <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select node type" />
+                              <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {schemaNodeTypes.map((type: string) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="Concept">Concept</SelectItem>
+                              <SelectItem value="Person">Person</SelectItem>
+                              <SelectItem value="Paper">Paper</SelectItem>
+                              <SelectItem value="Tool">Tool</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -625,8 +677,8 @@ export default function MindMapPage() {
                           <Textarea
                             value={editingNodeData.description}
                             onChange={(e) => handleEditingNodeChange('description', e.target.value)}
-                            className="mt-1 resize-none min-h-20"
-                            placeholder="Describe this node..."
+                            className="mt-1 min-h-[100px]"
+                            placeholder="Enter description..."
                           />
                         </div>
                       </>
@@ -634,19 +686,16 @@ export default function MindMapPage() {
                       <>
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Title</label>
-                          <h3 className="text-lg font-semibold mt-1">{selectedNode.title}</h3>
+                          <h3 className="text-lg font-medium mt-1">{selectedNode.title}</h3>
                         </div>
                         
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Type</label>
                           <div className="mt-1">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              selectedNode.type === 'Concept' ? 'text-black' :
-                              selectedNode.type === 'Paper' ? 'text-white' :
-                              'text-white'
-                            }`}
-                            style={{
-                              backgroundColor: selectedNode.type === 'Concept' ? '#C2F8CB' :
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white" style={{
+                              backgroundColor: selectedNode.type === 'Concept' ? '#5603AD' :
+                                             selectedNode.type === 'Person' ? '#B91C1C' :
+                                             selectedNode.type === 'Tool' ? '#059669' :
                                              selectedNode.type === 'Paper' ? '#8367C7' :
                                              '#5603AD'
                             }}>
@@ -671,8 +720,8 @@ export default function MindMapPage() {
             </PanelResizeHandle>
           </>
         )}
-        
-        <Panel defaultSize={75}>
+
+        <Panel defaultSize={selectedNode ? 55 : 75}>
           <div className="h-full relative">
             {/* Auth Buttons - Top right */}
             <div className="absolute top-4 right-4 z-10">
@@ -762,54 +811,37 @@ export default function MindMapPage() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-3 justify-end">
+                  <div className="flex gap-3">
                     <Button
                       variant="outline"
                       onClick={handleDeclineRecommendation}
-                      className="flex items-center gap-2"
+                      className="flex-1"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 mr-2" />
                       Decline
                     </Button>
                     <Button
-                      onClick={handleAcceptRecommendation}
-                      className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                      onClick={() => {
+                        console.log('Accept button clicked with:', { recommendedNode, selectedNode });
+                        console.log('All nodes:', nodes);
+                        console.log('Looking for node with title:', recommendedNode.title);
+                        // Find the actual recommendation node ID
+                        const recNode = nodes.find(n => {
+                          console.log('Checking node:', n, 'data:', n.data);
+                          return n.data?.title === recommendedNode.title && (n.data as any)?.isRecommendation;
+                        });
+                        const nodeId = recNode?.id || '';
+                        console.log('Found recommendation node:', recNode, 'ID:', nodeId);
+                        handleAcceptRecommendation(recommendedNode, nodeId);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
                     >
-                      <Check className="w-4 h-4" />
-                      Accept & Add
+                      <Check className="w-4 h-4 mr-2" />
+                      Accept
                     </Button>
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* Edge Context Menu */}
-            {showEdgeContextMenu && selectedEdge && (
-              <div 
-                className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50"
-                style={{ 
-                  left: edgeContextMenuPosition.x, 
-                  top: edgeContextMenuPosition.y 
-                }}
-              >
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteEdge(selectedEdge)}
-                  className="w-full"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Connection
-                </Button>
-              </div>
-            )}
-
-            {/* Click outside to close edge context menu */}
-            {showEdgeContextMenu && (
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={handleEdgeContextMenuClose}
-              />
             )}
 
             <ReactFlow
@@ -818,10 +850,13 @@ export default function MindMapPage() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
-              onEdgeClick={handleEdgeClick}
               nodeTypes={nodeTypes}
+              onNodeClick={handleNodeClick}
+              onPaneClick={() => setSelectedNode(null)}
+              onEdgeClick={(event, edge) => handleEdgeClick(event, edge.id)}
               className="bg-background"
-              data-testid="canvas-react-flow"
+              fitView
+              fitViewOptions={{ padding: 0.1 }}
             >
               <Background color="#94a3b8" gap={16} />
               <Controls className="bg-card border border-border rounded-lg shadow-sm" />
@@ -830,9 +865,31 @@ export default function MindMapPage() {
                 nodeColor={() => '#F0F0F0'}
               />
             </ReactFlow>
+
+            {/* Edge Context Menu */}
+            {showEdgeContextMenu && selectedEdge && (
+              <div 
+                className="absolute bg-white border border-gray-300 rounded shadow-lg z-50 p-2"
+                style={{ 
+                  left: edgeContextMenuPosition.x, 
+                  top: edgeContextMenuPosition.y 
+                }}
+                onClick={handleEdgeContextMenuClose}
+              >
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteEdge(selectedEdge)}
+                  className="w-full text-left justify-start"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Edge
+                </Button>
+              </div>
+            )}
           </div>
         </Panel>
       </PanelGroup>
     </div>
   );
-}
+};
