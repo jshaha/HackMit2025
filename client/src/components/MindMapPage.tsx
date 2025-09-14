@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
@@ -12,6 +12,16 @@ import MindMapNode from './MindMapNode';
 import SupabaseAuthButtons from './SupabaseAuthButtons';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 import { getAiRecommendations, type AiRecommendation } from '@/lib/getAiRecommendations';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { 
+  loadUserNodes, 
+  loadUserEdges, 
+  saveNode, 
+  updateNode, 
+  deleteNode, 
+  saveEdge, 
+  deleteEdge 
+} from '@/lib/supabaseMindMap';
 
 // Define the node data type
 type MindMapNodeData = {
@@ -88,6 +98,7 @@ const initialEdges = [
 ];
 
 export default function MindMapPage() {
+  const { user, isAuthenticated } = useSupabaseAuth();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<MindMapNodeType | null>(null);
@@ -100,18 +111,90 @@ export default function MindMapPage() {
   const [editingNodeData, setEditingNodeData] = useState<MindMapNodeType | null>(null);
   const [showRecommendation, setShowRecommendation] = useState(false);
   const [recommendedNode, setRecommendedNode] = useState<InsertMindMapNode | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load user data when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadUserData();
+    } else {
+      // Clear data when not authenticated
+      setNodes([]);
+      setEdges([]);
+      setFilteredNodes([]);
+    }
+  }, [isAuthenticated, user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const [loadedNodes, loadedEdges] = await Promise.all([
+        loadUserNodes(user.id),
+        loadUserEdges(user.id)
+      ]);
+
+      // Convert to React Flow format
+      const reactFlowNodes: ReactFlowMindMapNode[] = loadedNodes.map(node => ({
+        id: node.id,
+        type: 'mindMapNode',
+        position: node.position,
+        data: {
+          title: node.title,
+          type: node.type,
+          description: node.description,
+          onClick: () => handleNodeClick({ id: node.id, data: node, position: node.position }),
+        },
+      }));
+
+      const reactFlowEdges = loadedEdges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: 'default' as const,
+        style: { stroke: '#94a3b8', strokeWidth: 2 }
+      }));
+
+      setNodes(reactFlowNodes);
+      setEdges(reactFlowEdges);
+      setFilteredNodes(reactFlowNodes);
+    } catch (err) {
+      console.error('Failed to load user data:', err);
+      setError('Failed to load your mind map data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const onConnect = useCallback(
-    (params: Connection) => {
+    async (params: Connection) => {
       const newEdge = {
         ...params,
         type: 'default' as const,
         style: { stroke: '#94a3b8', strokeWidth: 2 }
       };
       
+      // Add to local state immediately
       setEdges((eds) => addEdge(newEdge, eds));
+
+      // Save to Supabase if user is authenticated
+      if (user) {
+        try {
+          const success = await saveEdge(params.source!, params.target!, user.id);
+          if (!success) {
+            console.error('Failed to save edge to Supabase');
+          }
+        } catch (err) {
+          console.error('Failed to save edge to Supabase:', err);
+          // Don't show error to user, just log it
+        }
+      }
     },
-    [setEdges]
+    [user, setEdges]
   );
 
   const handleNodeClick = useCallback((nodeData: any) => {
@@ -138,7 +221,7 @@ export default function MindMapPage() {
     setSelectedNode(node);
   }, []);
 
-  const addNode = useCallback((nodeData: InsertMindMapNode) => {
+  const addNode = useCallback(async (nodeData: InsertMindMapNode) => {
     const id = `node-${Date.now()}`;
     const newNode: ReactFlowMindMapNode = {
       id,
@@ -152,8 +235,25 @@ export default function MindMapPage() {
       },
     };
     
+    // Add to local state immediately
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes, handleNodeClick]);
+    setFilteredNodes((nds) => [...nds, newNode]);
+
+    // Save to Supabase if user is authenticated
+    if (user) {
+      try {
+        const savedNode = await saveNode(nodeData, user.id);
+        if (savedNode) {
+          // Update the node with the saved ID from Supabase
+          setNodes((nds) => nds.map(n => n.id === id ? { ...n, id: savedNode.id } : n));
+          setFilteredNodes((nds) => nds.map(n => n.id === id ? { ...n, id: savedNode.id } : n));
+        }
+      } catch (err) {
+        console.error('Failed to save node to Supabase:', err);
+        // Don't show error to user, just log it
+      }
+    }
+  }, [user, setNodes, setFilteredNodes, handleNodeClick]);
 
   // Handle search functionality
   const handleSearch = useCallback((query: string) => {
@@ -569,6 +669,19 @@ export default function MindMapPage() {
 
   return (
     <div className="h-screen w-full bg-background" data-testid="page-mind-map">
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm flex justify-between items-center">
+          <span>{error}</span>
+          <button 
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 ml-2"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
       <PanelGroup direction="horizontal" className="h-full">
         <Panel defaultSize={20} minSize={15} maxSize={30}>
           <AddNodeSidebar 
@@ -858,27 +971,36 @@ export default function MindMapPage() {
               </div>
             )}
 
-            <ReactFlow
-              nodes={allNodes}
-              edges={allEdges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes}
-              onNodeClick={handleNodeClick}
-              onPaneClick={() => setSelectedNode(null)}
-              onEdgeClick={(event, edge) => handleEdgeClick(event, edge.id)}
-              className="bg-background"
-              fitView
-              fitViewOptions={{ padding: 0.1 }}
-            >
-              <Background color="#94a3b8" gap={16} />
-              <Controls className="bg-card border border-border rounded-lg shadow-sm" />
-              <MiniMap 
-                className="bg-card border border-border rounded-lg"
-                nodeColor={() => '#F0F0F0'}
-              />
-            </ReactFlow>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading your mind map...</p>
+                </div>
+              </div>
+            ) : (
+              <ReactFlow
+                nodes={allNodes}
+                edges={allEdges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                onNodeClick={handleNodeClick}
+                onPaneClick={() => setSelectedNode(null)}
+                onEdgeClick={(event, edge) => handleEdgeClick(event, edge.id)}
+                className="bg-background"
+                fitView
+                fitViewOptions={{ padding: 0.1 }}
+              >
+                <Background color="#94a3b8" gap={16} />
+                <Controls className="bg-card border border-border rounded-lg shadow-sm" />
+                <MiniMap 
+                  className="bg-card border border-border rounded-lg"
+                  nodeColor={() => '#F0F0F0'}
+                />
+              </ReactFlow>
+            )}
 
             {/* Edge Context Menu */}
             {showEdgeContextMenu && selectedEdge && (

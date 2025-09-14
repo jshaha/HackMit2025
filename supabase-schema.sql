@@ -1,40 +1,60 @@
--- Supabase Database Schema for Mind Map Nodes
+-- Supabase Database Schema for Mind Map Application
 -- Run this SQL in your Supabase SQL editor
 
--- Create nodes table
-CREATE TABLE nodes (
+-- Create mind_map_nodes table
+CREATE TABLE mind_map_nodes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  content TEXT NOT NULL DEFAULT '',
-  parent_id UUID REFERENCES nodes(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('Concept', 'Paper', 'Dataset', 'Tool', 'Person', 'Organization', 'Event', 'Method')),
+  description TEXT NOT NULL DEFAULT '',
+  position_x REAL NOT NULL DEFAULT 0,
+  position_y REAL NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create mind_map_edges table
+CREATE TABLE mind_map_edges (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  source_id UUID REFERENCES mind_map_nodes(id) ON DELETE CASCADE,
+  target_id UUID REFERENCES mind_map_nodes(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable Row Level Security
-ALTER TABLE nodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mind_map_nodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mind_map_edges ENABLE ROW LEVEL SECURITY;
 
--- Create policy for users to only see their own nodes
-CREATE POLICY "Users can view their own nodes" ON nodes
+-- Create policies for mind_map_nodes
+CREATE POLICY "Users can view their own mind map nodes" ON mind_map_nodes
   FOR SELECT USING (auth.uid() = user_id);
 
--- Create policy for users to insert their own nodes
-CREATE POLICY "Users can insert their own nodes" ON nodes
+CREATE POLICY "Users can insert their own mind map nodes" ON mind_map_nodes
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Create policy for users to update their own nodes
-CREATE POLICY "Users can update their own nodes" ON nodes
+CREATE POLICY "Users can update their own mind map nodes" ON mind_map_nodes
   FOR UPDATE USING (auth.uid() = user_id);
 
--- Create policy for users to delete their own nodes
-CREATE POLICY "Users can delete their own nodes" ON nodes
+CREATE POLICY "Users can delete their own mind map nodes" ON mind_map_nodes
   FOR DELETE USING (auth.uid() = user_id);
 
--- Create an index on user_id for better performance
-CREATE INDEX idx_nodes_user_id ON nodes(user_id);
+-- Create policies for mind_map_edges
+CREATE POLICY "Users can view their own mind map edges" ON mind_map_edges
+  FOR SELECT USING (auth.uid() = user_id);
 
--- Create an index on parent_id for hierarchical queries
-CREATE INDEX idx_nodes_parent_id ON nodes(parent_id);
+CREATE POLICY "Users can insert their own mind map edges" ON mind_map_edges
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own mind map edges" ON mind_map_edges
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Create indexes for better performance
+CREATE INDEX idx_mind_map_nodes_user_id ON mind_map_nodes(user_id);
+CREATE INDEX idx_mind_map_edges_user_id ON mind_map_edges(user_id);
+CREATE INDEX idx_mind_map_edges_source_id ON mind_map_edges(source_id);
+CREATE INDEX idx_mind_map_edges_target_id ON mind_map_edges(target_id);
 
 -- Optional: Create a function to get all descendants of a node
 CREATE OR REPLACE FUNCTION get_node_descendants(node_uuid UUID)
