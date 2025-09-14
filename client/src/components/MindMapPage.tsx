@@ -352,7 +352,7 @@ export default function MindMapPage() {
   return (
     <div className="h-screen w-full bg-background" data-testid="page-mind-map">
       <PanelGroup direction="horizontal">
-        <Panel defaultSize={25} minSize={20} maxSize={40}>
+        <Panel id="left-sidebar" order={1} defaultSize={25} minSize={20} maxSize={40}>
           <div style={{ backgroundColor: '#F5F5F5' }} className="h-full">
             <AddNodeSidebar 
               onAddNode={addNode} 
@@ -368,7 +368,7 @@ export default function MindMapPage() {
 
         {selectedNode && (
           <>
-            <Panel defaultSize={25} minSize={20} maxSize={40}>
+            <Panel id="right-sidebar" order={2} defaultSize={25} minSize={20} maxSize={40}>
               <div className="border-r border-border h-full overflow-y-auto flex flex-col" style={{ backgroundColor: '#F5F5F5' }} data-testid="sidebar-node-details">
                 {/* Header */}
                 <div className="p-4 border-b border-border flex items-center justify-between">
@@ -519,7 +519,7 @@ export default function MindMapPage() {
           </>
         )}
         
-        <Panel defaultSize={75}>
+        <Panel id="main-content" order={3} defaultSize={75}>
           <div className="h-full relative">
             {/* AI Recommendations Button - Only show when node is selected */}
             {selectedNode && (
