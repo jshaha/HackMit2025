@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Edit2, X, Trash2 } from 'lucide-react';
+import { Edit2, X, Trash2, Sparkles, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,6 +93,8 @@ export default function MindMapPage() {
   const [tempTitle, setTempTitle] = useState(mindMapTitle);
   const [isEditingNode, setIsEditingNode] = useState(false);
   const [editingNodeData, setEditingNodeData] = useState<MindMapNodeType | null>(null);
+  const [showRecommendation, setShowRecommendation] = useState(false);
+  const [recommendedNode, setRecommendedNode] = useState<InsertMindMapNode | null>(null);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -260,12 +262,90 @@ export default function MindMapPage() {
     }
   }, [editingNodeData]);
 
+  // AI Recommendation utilities
+  const handleGetAiRecommendations = useCallback(() => {
+    if (!selectedNode) {
+      console.log('No node selected for AI recommendations');
+      return;
+    }
+    
+    // Generate hardcoded recommendation based on selected node
+    const hardcodedRecommendations = {
+      'Machine Learning': {
+        title: 'Neural Networks',
+        type: 'Concept' as const,
+        description: 'Deep learning architectures inspired by biological neural networks, fundamental to modern AI systems.',
+        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
+      },
+      'GPT-4 Paper': {
+        title: 'Transformer Architecture',
+        type: 'Paper' as const,
+        description: 'Attention is All You Need - the foundational paper introducing the transformer model architecture.',
+        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
+      },
+      'ImageNet': {
+        title: 'COCO Dataset',
+        type: 'Dataset' as const,
+        description: 'Common Objects in Context - large-scale object detection, segmentation, and captioning dataset.',
+        position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
+      }
+    };
+    
+    const recommendation = hardcodedRecommendations[selectedNode.title as keyof typeof hardcodedRecommendations] || {
+      title: 'Related Research',
+      type: 'Concept' as const,
+      description: 'A related concept that builds upon the selected node.',
+      position: { x: selectedNode.position.x + 150, y: selectedNode.position.y + 100 }
+    };
+    
+    setRecommendedNode(recommendation);
+    setShowRecommendation(true);
+  }, [selectedNode]);
+
+  // Handle recommendation accept/decline
+  const handleAcceptRecommendation = useCallback(() => {
+    if (recommendedNode && selectedNode) {
+      // Add the recommended node
+      addNode(recommendedNode);
+      
+      // Create edge from selected node to recommended node
+      const newEdge = {
+        id: `edge-${selectedNode.id}-${Date.now()}`,
+        source: selectedNode.id,
+        target: `node-${Date.now()}`,
+        type: 'default' as const,
+        style: { stroke: '#94a3b8', strokeWidth: 2 }
+      };
+      setEdges((eds) => [...eds, newEdge]);
+    }
+    setShowRecommendation(false);
+    setRecommendedNode(null);
+  }, [recommendedNode, selectedNode, addNode, setEdges]);
+
+  const handleDeclineRecommendation = useCallback(() => {
+    setShowRecommendation(false);
+    setRecommendedNode(null);
+  }, []);
+
   // Update existing nodes with click handlers and filter based on search
   const updatedNodes = (searchQuery ? filteredNodes : nodes).map(node => ({
     ...node,
     data: {
       ...node.data,
       onClick: () => handleNodeClick(node),
+      onDelete: () => handleDeleteNode(node.id),
+      onAiRecommend: () => {
+        // Set the node as selected first, then get recommendations
+        const nodeData = {
+          id: node.id,
+          title: node.data.title,
+          type: node.data.type,
+          description: node.data.description,
+          position: node.position,
+        };
+        setSelectedNode(nodeData);
+        handleGetAiRecommendations();
+      },
     },
   }));
 
@@ -322,6 +402,15 @@ export default function MindMapPage() {
                           className="h-6 w-6 p-0"
                         >
                           <Edit2 className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleGetAiRecommendations}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          AI
                         </Button>
                         <Button
                           variant="destructive"
@@ -432,6 +521,20 @@ export default function MindMapPage() {
         
         <Panel defaultSize={75}>
           <div className="h-full relative">
+            {/* AI Recommendations Button - Only show when node is selected */}
+            {selectedNode && (
+              <div className="absolute top-4 right-4 z-10">
+                <Button
+                  onClick={handleGetAiRecommendations}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+                  size="sm"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Suggest Next Node
+                </Button>
+              </div>
+            )}
+
             {/* Mind Map Title */}
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 group">
               {isEditingTitle ? (
@@ -461,6 +564,64 @@ export default function MindMapPage() {
             {searchQuery && filteredNodes.length === 0 && (
               <div className="absolute top-4 left-4 z-10 bg-card border border-border rounded-lg p-3 shadow-sm">
                 <p className="text-sm text-muted-foreground">No nodes found matching "{searchQuery}"</p>
+              </div>
+            )}
+
+            {/* AI Recommendation Dialog */}
+            {showRecommendation && recommendedNode && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-30">
+                <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    AI Recommendation
+                  </h3>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Suggested Node</label>
+                      <h4 className="text-lg font-semibold">{recommendedNode.title}</h4>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Type</label>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${
+                        recommendedNode.type === 'Concept' ? 'text-black' :
+                        recommendedNode.type === 'Paper' ? 'text-white' :
+                        'text-white'
+                      }`}
+                      style={{
+                        backgroundColor: recommendedNode.type === 'Concept' ? '#C2F8CB' :
+                                       recommendedNode.type === 'Paper' ? '#8367C7' :
+                                       '#5603AD'
+                      }}>
+                        {recommendedNode.type}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Description</label>
+                      <p className="text-sm text-gray-700 mt-1">{recommendedNode.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={handleDeclineRecommendation}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Decline
+                    </Button>
+                    <Button
+                      onClick={handleAcceptRecommendation}
+                      className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Accept & Add
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
             <ReactFlow
