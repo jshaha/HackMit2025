@@ -4,6 +4,20 @@ import { z } from "zod";
 export const nodeTypes = ["Concept", "Paper", "Dataset"] as const;
 export type NodeType = typeof nodeTypes[number];
 
+// Attachment Types
+export const attachmentTypes = ["link", "image", "file"] as const;
+export type AttachmentType = typeof attachmentTypes[number];
+
+// File Types for categorization
+export const fileTypes = [
+  "document", // .pdf, .doc, .docx, .txt, .md
+  "code", // .js, .ts, .py, .java, .cpp, etc.
+  "data", // .csv, .json, .xml, .xlsx
+  "image", // .jpg, .png, .gif, .svg
+  "other"
+] as const;
+export type FileType = typeof fileTypes[number];
+
 // Supabase Database Node Schema (for persistence)
 export const databaseNodeSchema = z.object({
   id: z.string().uuid(),
@@ -29,7 +43,35 @@ export type DatabaseNode = z.infer<typeof databaseNodeSchema>;
 export type InsertDatabaseNode = z.infer<typeof insertDatabaseNodeSchema>;
 export type UpdateDatabaseNode = z.infer<typeof updateDatabaseNodeSchema>;
 
-// Mind Map Node Schema (for UI)
+// Attachment Schema
+export const attachmentSchema = z.object({
+  id: z.string().uuid(),
+  nodeId: z.string().uuid(),
+  type: z.enum(attachmentTypes),
+  name: z.string().min(1, "Name is required"),
+  url: z.string().url("Must be a valid URL"),
+  fileType: z.enum(fileTypes).optional(),
+  fileSize: z.number().optional(), // in bytes
+  mimeType: z.string().optional(),
+  createdAt: z.string().datetime(),
+});
+
+export const insertAttachmentSchema = attachmentSchema.omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const updateAttachmentSchema = attachmentSchema.partial().omit({ 
+  id: true, 
+  nodeId: true,
+  createdAt: true 
+});
+
+export type Attachment = z.infer<typeof attachmentSchema>;
+export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
+export type UpdateAttachment = z.infer<typeof updateAttachmentSchema>;
+
+// Mind Map Node Schema (for UI) - Updated to include attachments
 export const mindMapNodeSchema = z.object({
   id: z.string(),
   title: z.string().min(1, "Title is required"),
@@ -39,6 +81,7 @@ export const mindMapNodeSchema = z.object({
     x: z.number(),
     y: z.number(),
   }),
+  attachments: z.array(attachmentSchema).optional().default([]),
 });
 
 export const insertMindMapNodeSchema = mindMapNodeSchema.omit({ id: true });

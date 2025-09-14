@@ -1,6 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { fileUploadService, getFileType, getMimeType } from "./fileUpload";
+import { insertAttachmentSchema, updateAttachmentSchema } from "@shared/schema";
+import multer from "multer";
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -196,6 +205,168 @@ IMPORTANT: Format your responses in a clear, readable way. Use:
     } catch (err) {
       console.error("Claude API error:", err);
       res.status(500).json({ error: "Failed to get response from Claude" });
+    }
+  });
+
+  // Attachment routes
+  
+  // Get attachments for a node
+  app.get("/api/attachments/node/:nodeId", async (req, res) => {
+    try {
+      const { nodeId } = req.params;
+      const attachments = await storage.getAttachments(nodeId);
+      res.json(attachments);
+    } catch (error) {
+      console.error("Get attachments error:", error);
+      res.status(500).json({ error: "Failed to get attachments" });
+    }
+  });
+
+  // Get a specific attachment
+  app.get("/api/attachments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const attachment = await storage.getAttachment(id);
+      if (!attachment) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+      res.json(attachment);
+    } catch (error) {
+      console.error("Get attachment error:", error);
+      res.status(500).json({ error: "Failed to get attachment" });
+    }
+  });
+
+  // Create a link attachment
+  app.post("/api/attachments/link", async (req, res) => {
+    try {
+      const validatedData = insertAttachmentSchema.parse({
+        ...req.body,
+        type: "link"
+      });
+
+      const attachment = await storage.createAttachment(validatedData);
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Create link attachment error:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid attachment data", details: error.message });
+      }
+      res.status(500).json({ error: "Failed to create link attachment" });
+    }
+  });
+
+  // Upload file attachment
+  app.post("/api/attachments/file", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const { nodeId, name } = req.body;
+      if (!nodeId) {
+        return res.status(400).json({ error: "Node ID is required" });
+      }
+
+      // Upload the file
+      const uploadedFile = await fileUploadService.uploadFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+
+      // Create attachment record
+      const attachmentData = {
+        nodeId,
+        type: "file" as const,
+        name: name || uploadedFile.originalName,
+        url: uploadedFile.url,
+        fileType: uploadedFile.fileType,
+        fileSize: uploadedFile.size,
+        mimeType: uploadedFile.mimeType,
+      };
+
+      const validatedData = insertAttachmentSchema.parse(attachmentData);
+      const attachment = await storage.createAttachment(validatedData);
+      
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Upload file attachment error:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid attachment data", details: error.message });
+      }
+      res.status(500).json({ error: "Failed to upload file attachment" });
+    }
+  });
+
+  // Create image attachment from URL
+  app.post("/api/attachments/image", async (req, res) => {
+    try {
+      const { nodeId, name, url } = req.body;
+      
+      if (!nodeId || !url) {
+        return res.status(400).json({ error: "Node ID and URL are required" });
+      }
+
+      // For images, we can either store the URL directly or download and re-host
+      // For now, we'll store the URL directly for external images
+      const attachmentData = {
+        nodeId,
+        type: "image" as const,
+        name: name || "Image",
+        url,
+        fileType: "image" as const,
+        mimeType: getMimeType(url),
+      };
+
+      const validatedData = insertAttachmentSchema.parse(attachmentData);
+      const attachment = await storage.createAttachment(validatedData);
+      
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Create image attachment error:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid attachment data", details: error.message });
+      }
+      res.status(500).json({ error: "Failed to create image attachment" });
+    }
+  });
+
+  // Update attachment
+  app.put("/api/attachments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateAttachmentSchema.parse(req.body);
+
+      const attachment = await storage.updateAttachment(id, validatedData);
+      if (!attachment) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+
+      res.json(attachment);
+    } catch (error) {
+      console.error("Update attachment error:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid attachment data", details: error.message });
+      }
+      res.status(500).json({ error: "Failed to update attachment" });
+    }
+  });
+
+  // Delete attachment
+  app.delete("/api/attachments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteAttachment(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete attachment error:", error);
+      res.status(500).json({ error: "Failed to delete attachment" });
     }
   });
 

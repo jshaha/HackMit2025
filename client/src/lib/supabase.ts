@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 
-// Create Supabase client
-export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+// Create Supabase client only if environment variables are available
+export const supabase = env.SUPABASE_URL && env.SUPABASE_ANON_KEY 
+  ? createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY)
+  : null;
 
 // Database types
 export interface Database {

@@ -36,6 +36,63 @@ CREATE INDEX idx_nodes_user_id ON nodes(user_id);
 -- Create an index on parent_id for hierarchical queries
 CREATE INDEX idx_nodes_parent_id ON nodes(parent_id);
 
+-- Create attachments table for storing links, images, and files
+CREATE TABLE attachments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  node_id UUID REFERENCES nodes(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('link', 'image', 'file')),
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  file_type TEXT CHECK (file_type IN ('document', 'code', 'data', 'image', 'other')),
+  file_size BIGINT, -- in bytes
+  mime_type TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security for attachments
+ALTER TABLE attachments ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for attachments (users can only access attachments for their own nodes)
+CREATE POLICY "Users can view attachments for their own nodes" ON attachments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM nodes 
+      WHERE nodes.id = attachments.node_id 
+      AND nodes.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert attachments for their own nodes" ON attachments
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM nodes 
+      WHERE nodes.id = attachments.node_id 
+      AND nodes.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update attachments for their own nodes" ON attachments
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM nodes 
+      WHERE nodes.id = attachments.node_id 
+      AND nodes.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete attachments for their own nodes" ON attachments
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM nodes 
+      WHERE nodes.id = attachments.node_id 
+      AND nodes.user_id = auth.uid()
+    )
+  );
+
+-- Create indexes for better performance
+CREATE INDEX idx_attachments_node_id ON attachments(node_id);
+CREATE INDEX idx_attachments_type ON attachments(type);
+
 -- Optional: Create a function to get all descendants of a node
 CREATE OR REPLACE FUNCTION get_node_descendants(node_uuid UUID)
 RETURNS TABLE (

@@ -17,8 +17,8 @@ const env = {
 // Type safety for environment variables
 type EnvKeys = keyof typeof env;
 
-// Validate required environment variables
-const requiredVars: EnvKeys[] = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
+// Validate required environment variables (Supabase is optional for development)
+const requiredVars: EnvKeys[] = [];
 for (const key of requiredVars) {
   if (!env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);
