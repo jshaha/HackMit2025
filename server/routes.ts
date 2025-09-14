@@ -28,8 +28,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create context from nodes if provided
       const graphContext = nodes && nodes.length > 0 
         ? `You are an AI assistant helping a researcher navigate their knowledge graph.
-Here is the relevant context from the graph:\n\n${JSON.stringify(nodes, null, 2)}`
-        : "You are an AI assistant helping a researcher with their questions.";
+Here is the relevant context from the graph:\n\n${JSON.stringify(nodes, null, 2)}
+
+IMPORTANT: Format your responses in a clear, readable way. Use:
+- **Bold text** for emphasis
+- Bullet points for lists
+- Clear headings with ##
+- Simple mathematical notation (like x^2 instead of LaTeX)
+- Line breaks for readability
+- Avoid complex LaTeX formatting`
+        : `You are an AI assistant helping a researcher with their questions.
+
+IMPORTANT: Format your responses in a clear, readable way. Use:
+- **Bold text** for emphasis
+- Bullet points for lists
+- Clear headings with ##
+- Simple mathematical notation (like x^2 instead of LaTeX)
+- Line breaks for readability
+- Avoid complex LaTeX formatting`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
