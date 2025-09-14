@@ -1,28 +1,15 @@
 import { createRoot } from "react-dom/client";
-import { Auth0Provider } from '@auth0/auth0-react';
 import App from "./App";
 import "./index.css";
 
-// Get Auth0 credentials from environment variables
-const AUTH0_DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN;
-const AUTH0_CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID;
+// Check for Supabase credentials
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!AUTH0_DOMAIN || !AUTH0_CLIENT_ID) {
-  throw new Error('Missing required Auth0 environment variables: VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID');
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing required Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
 }
 
-console.log('Auth0 configuration:', { domain: AUTH0_DOMAIN, clientId: AUTH0_CLIENT_ID });
+console.log('Supabase configuration:', { url: SUPABASE_URL, key: SUPABASE_ANON_KEY?.substring(0, 20) + '...' });
 
-createRoot(document.getElementById("root")!).render(
-  <Auth0Provider
-    domain={AUTH0_DOMAIN}
-    clientId={AUTH0_CLIENT_ID}
-    authorizationParams={{
-      redirect_uri: window.location.origin
-    }}
-    useRefreshTokens={true}
-    cacheLocation="localstorage"
-  >
-    <App />
-  </Auth0Provider>
-);
+createRoot(document.getElementById("root")!).render(<App />);

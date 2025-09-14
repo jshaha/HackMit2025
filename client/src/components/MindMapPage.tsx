@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AddNodeSidebar from './AddNodeSidebar';
 import MindMapNode from './MindMapNode';
-import AuthButtons from './AuthButtons';
+import SupabaseAuthButtons from './SupabaseAuthButtons';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 import { nodeTypes as schemaNodeTypes } from '@shared/schema';
 import { getAiRecommendations, type AiRecommendation } from '@/lib/getAiRecommendations';
@@ -676,7 +676,7 @@ export default function MindMapPage() {
           <div className="h-full relative">
             {/* Auth Buttons - Top right */}
             <div className="absolute top-4 right-4 z-10">
-              <AuthButtons />
+              <SupabaseAuthButtons />
             </div>
 
             {/* AI Recommendations Button - Only show when node is selected */}

@@ -1,6 +1,6 @@
 // Environment configuration for Vite
 const env = {
-  // Auth0
+  // Auth0 (optional - only if using Auth0)
   AUTH0_DOMAIN: import.meta.env.VITE_AUTH0_DOMAIN as string,
   AUTH0_CLIENT_ID: import.meta.env.VITE_AUTH0_CLIENT_ID as string,
   
@@ -18,7 +18,7 @@ const env = {
 type EnvKeys = keyof typeof env;
 
 // Validate required environment variables
-const requiredVars: EnvKeys[] = ['AUTH0_DOMAIN', 'AUTH0_CLIENT_ID'];
+const requiredVars: EnvKeys[] = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'];
 for (const key of requiredVars) {
   if (!env[key]) {
     throw new Error(`Missing required environment variable: ${key}`);

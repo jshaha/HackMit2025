@@ -4,7 +4,32 @@ import { z } from "zod";
 export const nodeTypes = ["Concept", "Paper", "Dataset"] as const;
 export type NodeType = typeof nodeTypes[number];
 
-// Mind Map Node Schema
+// Supabase Database Node Schema (for persistence)
+export const databaseNodeSchema = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
+  title: z.string().min(1, "Title is required"),
+  content: z.string(),
+  parent_id: z.string().uuid().nullable(),
+  created_at: z.string().datetime(),
+});
+
+export const insertDatabaseNodeSchema = databaseNodeSchema.omit({ 
+  id: true, 
+  created_at: true 
+});
+
+export const updateDatabaseNodeSchema = databaseNodeSchema.partial().omit({ 
+  id: true, 
+  user_id: true, 
+  created_at: true 
+});
+
+export type DatabaseNode = z.infer<typeof databaseNodeSchema>;
+export type InsertDatabaseNode = z.infer<typeof insertDatabaseNodeSchema>;
+export type UpdateDatabaseNode = z.infer<typeof updateDatabaseNodeSchema>;
+
+// Mind Map Node Schema (for UI)
 export const mindMapNodeSchema = z.object({
   id: z.string(),
   title: z.string().min(1, "Title is required"),
