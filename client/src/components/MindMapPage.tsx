@@ -11,7 +11,6 @@ import AddNodeSidebar from './AddNodeSidebar';
 import MindMapNode from './MindMapNode';
 import SupabaseAuthButtons from './SupabaseAuthButtons';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
-import { nodeTypes as schemaNodeTypes } from '@shared/schema';
 import { getAiRecommendations, type AiRecommendation } from '@/lib/getAiRecommendations';
 
 // Define the node data type
@@ -20,6 +19,10 @@ type MindMapNodeData = {
   type: NodeType;
   description: string;
   onClick: () => void;
+  onDelete?: () => void;
+  onAiRecommend?: () => void;
+  onAccept?: () => void;
+  isRecommendation?: boolean;
 };
 
 // Define the React Flow node type
@@ -285,31 +288,92 @@ export default function MindMapPage() {
   const [showEdgeContextMenu, setShowEdgeContextMenu] = useState(false);
   const [edgeContextMenuPosition, setEdgeContextMenuPosition] = useState({ x: 0, y: 0 });
 
-  const handleGetAiRecommendations = useCallback(async () => {
+  // Handle accepting a recommendation (clicking Accept button)
+  const handleAcceptRecommendation = useCallback((recommendation: AiRecommendation, nodeId: string) => {
+    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode });
+    
     if (!selectedNode) {
-      console.log('No node selected for AI recommendations');
+      console.log('No selected node, returning');
       return;
     }
     
+    // Find the accepted recommendation node to keep its position
+    setNodes((currentNodes) => {
+      const acceptedNode = currentNodes.find(n => n.id === nodeId);
+      
+      if (!acceptedNode) {
+        console.log('No accepted node found with ID:', nodeId);
+        return currentNodes;
+      }
+      
+      // Convert the accepted recommendation node to a permanent node
+      const permanentNodeId = `node-${Date.now()}`;
+      const permanentNode: ReactFlowMindMapNode = {
+        id: permanentNodeId,
+        type: 'mindMapNode',
+        position: acceptedNode.position,
+        data: {
+          title: recommendation.title,
+          type: recommendation.type,
+          description: recommendation.description,
+          onClick: () => handleNodeClick({
+            id: permanentNodeId,
+            title: recommendation.title,
+            type: recommendation.type,
+            description: recommendation.description,
+            position: acceptedNode.position,
+          }),
+        },
+      };
+      
+      // Remove all recommendation nodes and add the permanent node
+      const filteredNodes = currentNodes.filter(node => !node.data.isRecommendation);
+      return [...filteredNodes, permanentNode];
+    });
+    
+    // Remove recommendation edges and add solid edge
+    setEdges((currentEdges) => {
+      const filteredEdges = currentEdges.filter(edge => !edge.style?.strokeDasharray);
+      
+      const permanentNodeId = `node-${Date.now()}`;
+      const newEdge = {
+        id: `edge-${Date.now()}`,
+        source: selectedNode.id,
+        target: permanentNodeId,
+        type: 'default' as const,
+        style: { stroke: '#8b5cf6', strokeWidth: 2 },
+      };
+      
+      return [...filteredEdges, newEdge];
+    });
+    
+    // Clear AI recommendations state
+    setAiRecommendations([]);
+    setShowAiRecommendations(false);
+  }, [selectedNode, setNodes, setEdges, handleNodeClick]);
+
+  const handleGetAiRecommendationsForNode = useCallback(async (nodeData: MindMapNodeType) => {
     setIsLoadingRecommendations(true);
     try {
-      // Get AI recommendations based on selected node and all nodes
-      const response = await getAiRecommendations(selectedNode, nodes);
+      // Get AI recommendations based on the provided node and all nodes
+      const response = await getAiRecommendations(nodeData, nodes);
       
       // Add recommendations as regular nodes with dotted edges
       const timestamp = Date.now();
       response.recommendations.forEach((rec, index) => {
         const newNodeId = `rec-${timestamp}-${index}`;
         
-        // Calculate symmetric positioning around the selected node
+        // Position all suggestions below the selected node in a horizontal line
+        const spacing = 200; // Horizontal spacing between suggestions
+        const verticalOffset = 200; // Distance below the selected node
         const numRecs = response.recommendations.length;
-        const radius = 200; // Distance from selected node
-        const angleStep = (2 * Math.PI) / numRecs; // Divide circle evenly
-        const startAngle = -Math.PI / 2; // Start from top (12 o'clock position)
         
-        const angle = startAngle + (index * angleStep);
-        const x = selectedNode.position.x + radius * Math.cos(angle);
-        const y = selectedNode.position.y + radius * Math.sin(angle);
+        // Center the suggestions horizontally around the selected node
+        const totalWidth = (numRecs - 1) * spacing;
+        const startX = nodeData.position.x - (totalWidth / 2);
+        
+        const x = startX + (index * spacing);
+        const y = nodeData.position.y + verticalOffset;
         
         const newNode: ReactFlowMindMapNode = {
           id: newNodeId,
@@ -322,6 +386,7 @@ export default function MindMapPage() {
             isRecommendation: true,
             onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
             onAccept: () => handleAcceptRecommendation(rec, newNodeId),
+            // Explicitly omit onDelete and onAiRecommend to hide those buttons
           },
         };
         
@@ -331,7 +396,7 @@ export default function MindMapPage() {
         // Create dotted edge from selected node to recommended node
         const newEdge = {
           id: `rec-edge-${timestamp}-${index}`,
-          source: selectedNode.id,
+          source: nodeData.id,
           target: newNodeId,
           type: 'default' as const,
           style: { 
@@ -356,9 +421,9 @@ export default function MindMapPage() {
       // Fallback to simple recommendations
       const fallbackRecs = [
         {
-      title: 'Related Research',
-      type: 'Concept' as const,
-      description: 'A related concept that builds upon the selected node.',
+          title: 'Related Research',
+          type: 'Concept' as const,
+          description: 'A related concept that builds upon the selected node.',
           reasoning: 'This is a fallback recommendation when AI recommendations fail.'
         },
         {
@@ -380,15 +445,17 @@ export default function MindMapPage() {
       fallbackRecs.forEach((rec, index) => {
         const newNodeId = `rec-${timestamp}-${index}`;
         
-        // Calculate symmetric positioning around the selected node
+        // Position all suggestions below the selected node in a horizontal line
+        const spacing = 200; // Horizontal spacing between suggestions
+        const verticalOffset = 200; // Distance below the selected node
         const numRecs = fallbackRecs.length;
-        const radius = 200; // Distance from selected node
-        const angleStep = (2 * Math.PI) / numRecs; // Divide circle evenly
-        const startAngle = -Math.PI / 2; // Start from top (12 o'clock position)
         
-        const angle = startAngle + (index * angleStep);
-        const x = selectedNode.position.x + radius * Math.cos(angle);
-        const y = selectedNode.position.y + radius * Math.sin(angle);
+        // Center the suggestions horizontally around the selected node
+        const totalWidth = (numRecs - 1) * spacing;
+        const startX = nodeData.position.x - (totalWidth / 2);
+        
+        const x = startX + (index * spacing);
+        const y = nodeData.position.y + verticalOffset;
         
         const newNode: ReactFlowMindMapNode = {
           id: newNodeId,
@@ -401,6 +468,7 @@ export default function MindMapPage() {
             isRecommendation: true,
             onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
             onAccept: () => handleAcceptRecommendation(rec, newNodeId),
+            // Explicitly omit onDelete and onAiRecommend to hide those buttons
           },
         };
         
@@ -408,7 +476,7 @@ export default function MindMapPage() {
         
         const newEdge = {
           id: `rec-edge-${timestamp}-${index}`,
-          source: selectedNode.id,
+          source: nodeData.id,
           target: newNodeId,
           type: 'default' as const,
           style: { 
@@ -429,94 +497,22 @@ export default function MindMapPage() {
     } finally {
       setIsLoadingRecommendations(false);
     }
-  }, [selectedNode, nodes, addNode, setEdges]);
+  }, [nodes, setNodes, setEdges, handleNodeClick, handleAcceptRecommendation]);
 
+  const handleGetAiRecommendations = useCallback(async () => {
+    if (!selectedNode) {
+      console.log('No node selected for AI recommendations');
+      return;
+    }
+    
+    return handleGetAiRecommendationsForNode(selectedNode);
+  }, [selectedNode, handleGetAiRecommendationsForNode]);
 
   const handleDeclineAiRecommendations = useCallback(() => {
     setShowAiRecommendations(false);
     setAiRecommendations([]);
+    setIsLoadingRecommendations(false);
   }, []);
-
-  // Handle accepting a recommendation (clicking Accept button)
-  const handleAcceptRecommendation = useCallback((recommendation: AiRecommendation, nodeId: string) => {
-    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode });
-    
-    if (!selectedNode) {
-      console.log('No selected node, returning');
-      return;
-    }
-    
-    // Find the accepted recommendation node to keep its position
-    // Use setNodes callback to get the most current nodes state
-    setNodes((currentNodes) => {
-      console.log('Current nodes in setNodes callback:', currentNodes);
-      
-      const acceptedNode = currentNodes.find(n => n.id === nodeId);
-      console.log('Found accepted node:', acceptedNode);
-      
-      if (!acceptedNode) {
-        console.log('No accepted node found with ID:', nodeId);
-        return currentNodes; // Return unchanged if node not found
-      }
-      
-      // Convert the accepted recommendation node to a permanent node
-      const permanentNodeId = `node-${Date.now()}`;
-      const permanentNode: ReactFlowMindMapNode = {
-        id: permanentNodeId,
-        type: 'mindMapNode',
-        position: acceptedNode.position, // Keep the same position
-        data: {
-          title: recommendation.title,
-          type: recommendation.type,
-          description: recommendation.description,
-          // Remove isRecommendation flag and recommendation-specific handlers
-          onClick: () => handleNodeClick({ 
-            id: permanentNodeId, 
-            data: { title: recommendation.title, type: recommendation.type, description: recommendation.description }, 
-            position: acceptedNode.position 
-          }),
-        },
-      };
-      
-      // Remove all recommendation nodes and add the permanent node
-      // Find all recommendation nodes by checking for isRecommendation flag
-      const recNodes = currentNodes.filter(n => (n.data as any)?.isRecommendation);
-      const recNodeIds = recNodes.map(n => n.id);
-      console.log('Found recommendation nodes:', recNodes);
-      console.log('Removing recommendation node IDs:', recNodeIds);
-      
-      const filtered = currentNodes.filter(n => !recNodeIds.includes(n.id));
-      return [...filtered, permanentNode];
-    });
-    
-    // Handle edges separately
-    const permanentNodeId = `node-${Date.now()}`;
-    setEdges((currentEdges) => {
-      // Create solid edge from selected node to the permanent node
-      const permanentEdge = {
-        id: `edge-${selectedNode.id}-${permanentNodeId}`,
-        source: selectedNode.id,
-        target: permanentNodeId,
-        type: 'default' as const,
-        style: { stroke: '#94a3b8', strokeWidth: 2 } // Standard solid edge styling
-      };
-      
-      // Remove all recommendation edges
-      // Find all edges that connect to recommendation nodes
-      const recEdgeIds = currentEdges.filter((e: any) => {
-        // Check if this edge targets a recommendation node by looking for edges with 'rec-' prefix
-        return e.target && e.target.startsWith('rec-');
-      }).map((e: any) => e.id);
-      
-      console.log('Removing recommendation edge IDs:', recEdgeIds);
-      
-      const filtered = currentEdges.filter(e => !recEdgeIds.includes(e.id));
-      return [...filtered, permanentEdge];
-    });
-    
-    // Clear recommendations
-    setAiRecommendations([]);
-  }, [aiRecommendations, selectedNode, setNodes, setEdges, handleNodeClick]);
 
 
   const handleDeclineRecommendation = useCallback(() => {
@@ -560,7 +556,9 @@ export default function MindMapPage() {
           position: node.position,
         };
         setSelectedNode(nodeData);
-        handleGetAiRecommendations();
+        
+        // Call handleGetAiRecommendations with the nodeData directly
+        handleGetAiRecommendationsForNode(nodeData);
       },
     },
   }));
