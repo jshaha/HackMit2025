@@ -9,6 +9,7 @@ export function useSupabaseAuth() {
   const [error, setError] = useState<AuthError | null>(null);
 
   useEffect(() => {
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {

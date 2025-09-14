@@ -300,19 +300,27 @@ export default function MindMapPage() {
       const timestamp = Date.now();
       response.recommendations.forEach((rec, index) => {
         const newNodeId = `rec-${timestamp}-${index}`;
+        
+        // Calculate symmetric positioning around the selected node
+        const numRecs = response.recommendations.length;
+        const radius = 200; // Distance from selected node
+        const angleStep = (2 * Math.PI) / numRecs; // Divide circle evenly
+        const startAngle = -Math.PI / 2; // Start from top (12 o'clock position)
+        
+        const angle = startAngle + (index * angleStep);
+        const x = selectedNode.position.x + radius * Math.cos(angle);
+        const y = selectedNode.position.y + radius * Math.sin(angle);
+        
         const newNode: ReactFlowMindMapNode = {
           id: newNodeId,
           type: 'mindMapNode',
-          position: { 
-            x: selectedNode.position.x + 200 + (index * 180), 
-            y: selectedNode.position.y + 150 
-          },
+          position: { x, y },
           data: {
             title: rec.title,
             type: rec.type,
             description: rec.description,
             isRecommendation: true,
-            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x: selectedNode.position.x + 200 + (index * 180), y: selectedNode.position.y + 150 } }),
+            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
             onAccept: () => handleAcceptRecommendation(rec, newNodeId),
           },
         };
@@ -371,19 +379,27 @@ export default function MindMapPage() {
       const timestamp = Date.now();
       fallbackRecs.forEach((rec, index) => {
         const newNodeId = `rec-${timestamp}-${index}`;
+        
+        // Calculate symmetric positioning around the selected node
+        const numRecs = fallbackRecs.length;
+        const radius = 200; // Distance from selected node
+        const angleStep = (2 * Math.PI) / numRecs; // Divide circle evenly
+        const startAngle = -Math.PI / 2; // Start from top (12 o'clock position)
+        
+        const angle = startAngle + (index * angleStep);
+        const x = selectedNode.position.x + radius * Math.cos(angle);
+        const y = selectedNode.position.y + radius * Math.sin(angle);
+        
         const newNode: ReactFlowMindMapNode = {
           id: newNodeId,
           type: 'mindMapNode',
-          position: { 
-            x: selectedNode.position.x + 200 + (index * 180), 
-            y: selectedNode.position.y + 150 
-          },
+          position: { x, y },
           data: {
             title: rec.title,
             type: rec.type,
             description: rec.description,
             isRecommendation: true,
-            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x: selectedNode.position.x + 200 + (index * 180), y: selectedNode.position.y + 150 } }),
+            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
             onAccept: () => handleAcceptRecommendation(rec, newNodeId),
           },
         };
