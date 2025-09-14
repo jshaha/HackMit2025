@@ -133,7 +133,7 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: 
 
               <Button 
                 type="submit" 
-                className="w-full text-white hover:opacity-90"
+                className="w-full text-white hover:opacity-90 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
                 style={{ backgroundColor: '#8367C7' }}
                 disabled={isSubmitting}
                 data-testid="button-add-node"

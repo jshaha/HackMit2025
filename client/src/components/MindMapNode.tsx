@@ -38,11 +38,13 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
         type="target"
         position={Position.Top}
         className="w-3 h-3 bg-muted-foreground border-2 border-background"
+        style={{ top: '-6px' }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         className="w-3 h-3 bg-muted-foreground border-2 border-background z-10"
+        style={{ bottom: '25px' }}
       />
       <div className="relative group">
         {/* Main Node */}
@@ -82,12 +84,12 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           )}
         </div>
 
-        {/* Hover Delete Button - Top Right */}
+        {/* Hover Delete Button - Left */}
         {data.onDelete && (
           <Button
             variant="destructive"
             size="sm"
-            className="absolute -top-1 -right-1 w-4 h-4 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20"
+            className="absolute -bottom-1 -right-4 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20"
             onClick={(e) => {
               e.stopPropagation();
               data.onDelete?.();
@@ -113,12 +115,12 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           </Button>
         )}
 
-        {/* AI Recommendation Button - Extending from right */}
+        {/* AI Recommendation Button - Right */}
         {data.onAiRecommend && (
           <Button
             variant="secondary"
             size="sm"
-            className="absolute top-1/2 -translate-y-1/2 -right-6 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
+            className="absolute -bottom-1 -right-6 w-5 h-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
             onClick={(e) => {
               e.stopPropagation();
               data.onAiRecommend?.();
