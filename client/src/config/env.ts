@@ -30,4 +30,4 @@ for (const key of requiredVars) {
   }
 }
 
-export default env;
+export { env };
