@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
 import * as schema from "./schema";
 
 let db: ReturnType<typeof drizzle> | null = null;
@@ -11,8 +11,10 @@ export function getDb() {
       throw new Error("DATABASE_URL environment variable is not set");
     }
     
-    const sql = neon(databaseUrl);
-    db = drizzle(sql, { schema });
+    // Extract file path from sqlite:// URL
+    const dbPath = databaseUrl.replace('sqlite:', '');
+    const sqlite = new Database(dbPath);
+    db = drizzle(sqlite, { schema });
   }
   return db;
 }
