@@ -30,6 +30,47 @@ export const mindMapEdgeSchema = z.object({
 
 export type MindMapEdge = z.infer<typeof mindMapEdgeSchema>;
 
+// Complete Mind Map Schema
+export const mindMapSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1, "Title is required"),
+  nodes: z.array(mindMapNodeSchema),
+  edges: z.array(mindMapEdgeSchema),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const insertMindMapSchema = mindMapSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export type MindMap = z.infer<typeof mindMapSchema>;
+export type InsertMindMap = z.infer<typeof insertMindMapSchema>;
+
+// Saved Map Schema for database
+export const savedMapSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  title: z.string().min(1, "Title is required"),
+  data: z.object({
+    nodes: z.array(mindMapNodeSchema),
+    edges: z.array(mindMapEdgeSchema),
+  }),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const insertSavedMapSchema = savedMapSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export type SavedMap = z.infer<typeof savedMapSchema>;
+export type InsertSavedMap = z.infer<typeof insertSavedMapSchema>;
+
 // Legacy user schemas (keeping for compatibility)
 export const insertUserSchema = z.object({
   username: z.string(),

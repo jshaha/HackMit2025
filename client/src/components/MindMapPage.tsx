@@ -10,6 +10,7 @@ import NodeDetailsModal from './NodeDetailsModal';
 import MindMapNode from './MindMapNode';
 import SearchBar from './SearchBar';
 import AiPlaceholder from './AiPlaceholder';
+import SaveLoadPanel from './SaveLoadPanel';
 import type { MindMapNode as MindMapNodeType, InsertMindMapNode, NodeType } from '@shared/schema';
 
 // Define the node data type
@@ -92,6 +93,7 @@ export default function MindMapPage() {
   const [mindMapTitle, setMindMapTitle] = useState('My Research Mind Map');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(mindMapTitle);
+  const [currentMapId, setCurrentMapId] = useState<string | undefined>(undefined);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -180,6 +182,56 @@ export default function MindMapPage() {
     }
   }, [handleTitleSave, handleTitleCancel]);
 
+  // Handle loading a saved map
+  const handleLoadMap = useCallback((loadedNodes: MindMapNodeType[], loadedEdges: any[], title: string) => {
+    // Convert loaded nodes to ReactFlow format
+    const reactFlowNodes: ReactFlowMindMapNode[] = loadedNodes.map(node => ({
+      id: node.id,
+      type: 'mindMapNode',
+      position: node.position,
+      data: {
+        title: node.title,
+        type: node.type,
+        description: node.description,
+        onClick: () => handleNodeClick({ id: node.id, data: node, position: node.position }),
+      },
+    }));
+
+    // Convert loaded edges to ReactFlow format
+    const reactFlowEdges = loadedEdges.map(edge => ({
+      ...edge,
+      type: 'default' as const,
+      style: { stroke: '#94a3b8', strokeWidth: 2 }
+    }));
+
+    setNodes(reactFlowNodes);
+    setEdges(reactFlowEdges);
+    setMindMapTitle(title);
+    setSelectedNode(null);
+    setSearchQuery('');
+    setFilteredNodes(reactFlowNodes);
+  }, [setNodes, setEdges, handleNodeClick]);
+
+  // Convert ReactFlow nodes to MindMapNode format for saving
+  const getMindMapNodes = useCallback((): MindMapNodeType[] => {
+    return nodes.map(node => ({
+      id: node.id,
+      title: node.data.title,
+      type: node.data.type,
+      description: node.data.description,
+      position: node.position,
+    }));
+  }, [nodes]);
+
+  // Convert ReactFlow edges to MindMapEdge format for saving
+  const getMindMapEdges = useCallback(() => {
+    return edges.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+    }));
+  }, [edges]);
+
   // Update existing nodes with click handlers and filter based on search
   const updatedNodes = (searchQuery ? filteredNodes : nodes).map(node => ({
     ...node,
@@ -266,30 +318,41 @@ export default function MindMapPage() {
         
         <Panel defaultSize={75}>
           <div className="h-full relative">
-            {/* Mind Map Title */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 group">
-              {isEditingTitle ? (
-                <Input
-                  value={tempTitle}
-                  onChange={(e) => setTempTitle(e.target.value)}
-                  onKeyDown={handleTitleKeyDown}
-                  onBlur={handleTitleSave}
-                  className="text-lg font-semibold text-center bg-transparent border-0 focus-visible:ring-0 shadow-none"
-                  autoFocus
-                />
-              ) : (
-                <div className="flex items-center gap-2 cursor-pointer">
-                  <h1 className="text-lg font-semibold text-foreground">{mindMapTitle}</h1>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleTitleEdit}
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              )}
+            {/* Mind Map Title and Save/Load Panel */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-4">
+              <div className="group">
+                {isEditingTitle ? (
+                  <Input
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    onBlur={handleTitleSave}
+                    className="text-lg font-semibold text-center bg-transparent border-0 focus-visible:ring-0 shadow-none"
+                    autoFocus
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 cursor-pointer">
+                    <h1 className="text-lg font-semibold text-foreground">{mindMapTitle}</h1>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={handleTitleEdit}
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Save/Load Panel */}
+              <SaveLoadPanel
+                nodes={getMindMapNodes()}
+                edges={getMindMapEdges()}
+                title={mindMapTitle}
+                onLoadMap={handleLoadMap}
+                currentMapId={currentMapId}
+              />
             </div>
 
             {searchQuery && filteredNodes.length === 0 && (
