@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Node } from 'reactflow';
-import 'reactflow/dist/style.css';
+import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Node } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Edit2, X, Trash2, Sparkles, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';

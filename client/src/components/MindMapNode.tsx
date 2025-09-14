@@ -1,4 +1,4 @@
-import { Handle, Position } from 'reactflow';
+import { Handle, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import { X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
