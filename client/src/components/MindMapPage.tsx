@@ -1026,6 +1026,21 @@ export default function MindMapPage() {
                 onNodeClick={handleNodeClick}
                 onPaneClick={() => setSelectedNode(null)}
                 onEdgeClick={(event, edge) => handleEdgeClick(event, edge.id)}
+                onNodeDragStop={(_, node) => {
+                  if (!user) return;
+                  const current = nodes.find(n => n.id === node.id);
+                  if (!current) return;
+                  updateNode(
+                    {
+                      id: node.id,
+                      title: current.data.title,
+                      type: current.data.type,
+                      description: current.data.description,
+                      position: node.position,
+                    },
+                    user.id,
+                  );
+                }}
                 className="bg-background"
                 fitView
                 fitViewOptions={{ padding: 0.1 }}
