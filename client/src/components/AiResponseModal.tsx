@@ -76,11 +76,11 @@ export default function AiResponseModal({ isOpen, onClose, question, response, i
             
             {/* Response */}
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">AI Response:</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">LabBuddy Response:</h3>
               {isLoading ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                  <span>AI is thinking...</span>
+                  <span>LabBuddy is thinking...</span>
                 </div>
               ) : (
                 <div className="prose prose-sm max-w-none">

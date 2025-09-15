@@ -95,9 +95,10 @@ Provide 3 diverse, high-quality recommendations that would genuinely help expand
       const reply = data.content?.[0]?.text || "No response from Claude";
 
       // Try to parse the JSON response
+      // Declare outside try so we can reference in catch/logging
+      let cleanReply = reply;
       try {
         // Remove markdown code blocks if present
-        let cleanReply = reply;
         if (cleanReply.includes('```json')) {
           cleanReply = cleanReply.replace(/```json\n?/, '').replace(/\n?```$/, '');
         } else if (cleanReply.includes('```')) {
@@ -142,25 +143,13 @@ Provide 3 diverse, high-quality recommendations that would genuinely help expand
     try {
       // Create context from nodes if provided
       const graphContext = nodes && nodes.length > 0 
-        ? `You are an AI assistant helping a researcher navigate their knowledge graph.
-Here is the relevant context from the graph:\n\n${JSON.stringify(nodes, null, 2)}
+        ? `You are LabBuddy, a helpful research assistant for a knowledge graph.
+Here is the relevant context from the user's mind map (nodes):\n\n${JSON.stringify(nodes, null, 2)}
 
-IMPORTANT: Format your responses in a clear, readable way. Use:
-- **Bold text** for emphasis
-- Bullet points for lists
-- Clear headings with ##
-- Simple mathematical notation (like x^2 instead of LaTeX)
-- Line breaks for readability
-- Avoid complex LaTeX formatting`
-        : `You are an AI assistant helping a researcher with their questions.
+RESPONSE STYLE: Reply in plain, human-readable text. Do NOT use markdown, asterisks, backticks, underscores, headings, or any special formatting. Avoid emojis and special symbols. Keep sentences concise and easy to scan.`
+        : `You are LabBuddy, a helpful research assistant.
 
-IMPORTANT: Format your responses in a clear, readable way. Use:
-- **Bold text** for emphasis
-- Bullet points for lists
-- Clear headings with ##
-- Simple mathematical notation (like x^2 instead of LaTeX)
-- Line breaks for readability
-- Avoid complex LaTeX formatting`;
+RESPONSE STYLE: Reply in plain, human-readable text. Do NOT use markdown, asterisks, backticks, underscores, headings, or any special formatting. Avoid emojis and special symbols. Keep sentences concise and easy to scan.`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -190,7 +179,30 @@ IMPORTANT: Format your responses in a clear, readable way. Use:
       const data = await response.json();
 
       // Extract Claude's reply text
-      const reply = data.content?.[0]?.text || "No response from Claude";
+      let reply = data.content?.[0]?.text || "No response from Claude";
+
+      // Sanitize to remove markdown/special characters commonly used for formatting
+      const clean = (text: string) => {
+        return text
+          // remove code fences and inline backticks
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/`+/g, "")
+          // remove bold/italic markers
+          .replace(/\*\*|__/g, "")
+          .replace(/\*|_/g, "")
+          // strip leading markdown headings and bullets
+          .replace(/^\s*#{1,6}\s+/gm, "")
+          .replace(/^\s*[-•]\s+/gm, "")
+          // normalize fancy quotes/dashes
+          .replace(/[“”]/g, '"')
+          .replace(/[’]/g, "'")
+          .replace(/[–—]/g, "-")
+          // collapse excess whitespace
+          .replace(/\s+\n/g, "\n")
+          .trim();
+      };
+
+      reply = clean(reply);
 
       res.json({ reply });
     } catch (err) {
