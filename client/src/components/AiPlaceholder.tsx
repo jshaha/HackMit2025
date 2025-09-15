@@ -62,14 +62,14 @@ export default function AiPlaceholder({ onAskAi, nodes }: AiPlaceholderProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2" style={{ color: '#5603AD' }}>
           <Sparkles className="w-4 h-4" style={{ color: '#5603AD' }} />
-          Ask AI about your mind map
+          LabBuddy - Your Research Assistant
         </CardTitle>
       </CardHeader>
       
       <CardContent className="space-y-3">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            placeholder="Ask anything about your nodes..."
+            placeholder="Ask LabBuddy about your knowledge web..."
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             disabled={isThinking}

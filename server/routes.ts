@@ -9,7 +9,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // use storage to perform CRUD operations on the storage interface
   // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
 
-  // AI Node Recommendations route
+  // LabBuddy Node Recommendations route
   app.post("/api/ai-recommendations", async (req, res) => {
     const { selectedNode, allNodes } = req.body;
 

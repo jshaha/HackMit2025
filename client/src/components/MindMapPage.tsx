@@ -113,6 +113,7 @@ export default function MindMapPage() {
   const [recommendedNode, setRecommendedNode] = useState<InsertMindMapNode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [originalSelectedNode, setOriginalSelectedNode] = useState<MindMapNodeType | null>(null);
 
   // Load user data when authenticated
   useEffect(() => {
@@ -389,44 +390,55 @@ export default function MindMapPage() {
   const [edgeContextMenuPosition, setEdgeContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // Handle accepting a recommendation (clicking Accept button)
-  const handleAcceptRecommendation = useCallback((recommendation: AiRecommendation, nodeId: string) => {
-    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode });
+  const handleAcceptRecommendation = useCallback(async (recommendation: AiRecommendation, nodeId: string) => {
+    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode, originalSelectedNode });
+    console.log('Current nodes:', nodes);
     
-    if (!selectedNode) {
-      console.log('No selected node, returning');
+    // Use originalSelectedNode if available, otherwise fall back to selectedNode
+    const sourceNode = originalSelectedNode || selectedNode;
+    
+    if (!sourceNode) {
+      console.log('No source node available, returning');
       return;
     }
     
     // Find the accepted recommendation node to keep its position
-    setNodes((currentNodes) => {
-      const acceptedNode = currentNodes.find(n => n.id === nodeId);
-      
-      if (!acceptedNode) {
-        console.log('No accepted node found with ID:', nodeId);
-        return currentNodes;
-      }
-      
-      // Convert the accepted recommendation node to a permanent node
-      const permanentNodeId = `node-${Date.now()}`;
-      const permanentNode: ReactFlowMindMapNode = {
-        id: permanentNodeId,
-        type: 'mindMapNode',
-        position: acceptedNode.position,
-        data: {
+    const acceptedNode = nodes.find(n => n.id === nodeId);
+    
+    if (!acceptedNode) {
+      console.log('No accepted node found with ID:', nodeId);
+      return;
+    }
+    
+    // Create a shared permanent node ID
+    const permanentNodeId = `node-${Date.now()}`;
+    
+    // Convert the accepted recommendation node to a permanent node
+    const permanentNode: ReactFlowMindMapNode = {
+      id: permanentNodeId,
+      type: 'mindMapNode',
+      position: acceptedNode.position,
+      data: {
+        title: recommendation.title,
+        type: recommendation.type,
+        description: recommendation.description,
+        onClick: () => handleNodeClick({
+          id: permanentNodeId,
           title: recommendation.title,
           type: recommendation.type,
           description: recommendation.description,
-          onClick: () => handleNodeClick({
-            id: permanentNodeId,
-            title: recommendation.title,
-            type: recommendation.type,
-            description: recommendation.description,
-            position: acceptedNode.position,
-          }),
-        },
-      };
-      
-      // Remove all recommendation nodes and add the permanent node
+          position: acceptedNode.position,
+        }),
+      },
+    };
+    
+    // Remove all recommendation nodes and add the permanent node
+    setNodes((currentNodes) => {
+      const filteredNodes = currentNodes.filter(node => !node.data.isRecommendation);
+      return [...filteredNodes, permanentNode];
+    });
+    
+    setFilteredNodes((currentNodes) => {
       const filteredNodes = currentNodes.filter(node => !node.data.isRecommendation);
       return [...filteredNodes, permanentNode];
     });
@@ -435,10 +447,9 @@ export default function MindMapPage() {
     setEdges((currentEdges) => {
       const filteredEdges = currentEdges.filter(edge => !edge.style?.strokeDasharray);
       
-      const permanentNodeId = `node-${Date.now()}`;
       const newEdge = {
         id: `edge-${Date.now()}`,
-        source: selectedNode.id,
+        source: sourceNode.id,
         target: permanentNodeId,
         type: 'default' as const,
         style: { stroke: '#8b5cf6', strokeWidth: 2 },
@@ -447,15 +458,41 @@ export default function MindMapPage() {
       return [...filteredEdges, newEdge];
     });
     
-    // Clear AI recommendations state
+    // Save to Supabase if user is authenticated
+    if (user) {
+      try {
+        const nodeData = {
+          title: recommendation.title,
+          type: recommendation.type,
+          description: recommendation.description,
+          position: acceptedNode.position,
+        };
+        
+        const savedNode = await saveNode(nodeData, user.id);
+        if (savedNode) {
+          // Update the node with the saved ID from Supabase
+          setNodes((nds) => nds.map(n => n.id === permanentNodeId ? { ...n, id: savedNode.id } : n));
+          setFilteredNodes((nds) => nds.map(n => n.id === permanentNodeId ? { ...n, id: savedNode.id } : n));
+          
+          // Save the edge to Supabase
+          await saveEdge(sourceNode.id, savedNode.id, user.id);
+        }
+      } catch (err) {
+        console.error('Failed to save accepted node to Supabase:', err);
+      }
+    }
+    
+    // Clear LabBuddy recommendations state
     setAiRecommendations([]);
     setShowAiRecommendations(false);
-  }, [selectedNode, setNodes, setEdges, handleNodeClick]);
+  }, [selectedNode, originalSelectedNode, nodes, user, setNodes, setFilteredNodes, setEdges, handleNodeClick]);
 
   const handleGetAiRecommendationsForNode = useCallback(async (nodeData: MindMapNodeType) => {
     setIsLoadingRecommendations(true);
+    // Store the original selected node for accept functionality
+    setOriginalSelectedNode(nodeData);
     try {
-      // Get AI recommendations based on the provided node and all nodes
+      // Get LabBuddy recommendations based on the provided node and all nodes
       const response = await getAiRecommendations(nodeData, nodes);
       
       // Add recommendations as regular nodes with dotted edges
@@ -601,7 +638,7 @@ export default function MindMapPage() {
 
   const handleGetAiRecommendations = useCallback(async () => {
     if (!selectedNode) {
-      console.log('No node selected for AI recommendations');
+      console.log('No node selected for LabBuddy recommendations');
       return;
     }
     

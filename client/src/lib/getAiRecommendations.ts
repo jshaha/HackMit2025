@@ -29,7 +29,7 @@ export async function getAiRecommendations(
     const data = await res.json();
     return data;
   } catch (error) {
-    console.error("Error getting AI recommendations:", error);
-    throw new Error("Failed to get AI recommendations. Please check your connection and try again.");
+    console.error("Error getting LabBuddy recommendations:", error);
+    throw new Error("Failed to get LabBuddy recommendations. Please check your connection and try again.");
   }
 }

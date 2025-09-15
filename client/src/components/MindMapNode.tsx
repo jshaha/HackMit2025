@@ -79,7 +79,7 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           </div>
           {data.isRecommendation && (
             <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-30">
-              AI Recommendation
+              LabBuddy Suggestion
             </div>
           )}
         </div>
@@ -115,7 +115,7 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           </Button>
         )}
 
-        {/* AI Recommendation Button - Right */}
+        {/* LabBuddy Recommendation Button - Right */}
         {data.onAiRecommend && (
           <Button
             variant="secondary"
