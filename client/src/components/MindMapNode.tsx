@@ -13,6 +13,7 @@ interface MindMapNodeProps {
     onClick: () => void;
     onDelete?: () => void;
     onAiRecommend?: () => void;
+    isAiGenerated?: boolean;
   };
   id: string;
 }
@@ -53,7 +54,8 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           )}
           style={{
             backgroundColor: '#F0F0F0',
-            borderColor: data.type === 'Concept' ? '#C2F8CB' :
+            borderColor: data.isAiGenerated ? '#8b5cf6' :
+                        data.type === 'Concept' ? '#C2F8CB' :
                         data.type === 'Paper' ? '#8367C7' :
                         '#5603AD'
           }}

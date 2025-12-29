@@ -261,8 +261,8 @@ export default function MindMapPage() {
     setSelectedNode(node);
   }, []);
 
-  const addNode = useCallback(async (nodeData: InsertMindMapNode) => {
-    const id = `node-${Date.now()}`;
+  const addNode = useCallback(async (nodeData: InsertMindMapNode, isAiGenerated = false) => {
+    const id = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newNode: ReactFlowMindMapNode = {
       id,
       type: 'mindMapNode',
@@ -271,19 +271,22 @@ export default function MindMapPage() {
         title: nodeData.title,
         type: nodeData.type,
         description: nodeData.description,
+        isAiGenerated,
         onClick: () => handleNodeClick({ id, data: nodeData, position: nodeData.position }),
       },
     };
-    
+
     // Add to local state immediately
     setNodes((nds) => [...nds, newNode]);
     setFilteredNodes((nds) => [...nds, newNode]);
 
     // Save to Supabase if user is authenticated
+    let finalId = id;
     if (user) {
       try {
         const savedNode = await saveNode(nodeData, user.id);
         if (savedNode) {
+          finalId = savedNode.id;
           // Update the node with the saved ID from Supabase
           setNodes((nds) => nds.map(n => n.id === id ? { ...n, id: savedNode.id } : n));
           setFilteredNodes((nds) => nds.map(n => n.id === id ? { ...n, id: savedNode.id } : n));
@@ -293,6 +296,7 @@ export default function MindMapPage() {
         // Don't show error to user, just log it
       }
     }
+    return finalId;
   }, [user, setNodes, setFilteredNodes, handleNodeClick]);
 
   // Handle search functionality
@@ -442,12 +446,12 @@ export default function MindMapPage() {
       const totalWidth = (numRecs - 1) * spacing;
       const startX = nodeData.position.x - (totalWidth / 2);
 
-      // Create regular nodes directly using addNode
-      response.recommendations.forEach(async (rec, index) => {
+      // Create nodes and edges sequentially
+      for (let index = 0; index < response.recommendations.length; index++) {
+        const rec = response.recommendations[index];
         const x = startX + (index * spacing);
         const y = nodeData.position.y + verticalOffset;
 
-        // Use the existing addNode function to create a regular node
         const nodeToAdd = {
           title: rec.title,
           type: rec.type,
@@ -455,33 +459,24 @@ export default function MindMapPage() {
           position: { x, y },
         };
 
-        await addNode(nodeToAdd);
+        // Create node and get its ID (marked as AI-generated)
+        const newNodeId = await addNode(nodeToAdd, true);
 
-        // Add edge after a small delay to ensure node exists
-        setTimeout(() => {
-          const newNodeId = nodes.find(n =>
-            n.data.title === rec.title &&
-            n.position.x === x &&
-            n.position.y === y
-          )?.id;
+        // Create edge to source node
+        const newEdge = {
+          id: `edge-${Date.now()}-${index}`,
+          source: nodeData.id,
+          target: newNodeId,
+          type: 'default' as const,
+          style: { stroke: '#8b5cf6', strokeWidth: 2 },
+        };
+        setEdges((eds) => [...eds, newEdge]);
 
-          if (newNodeId) {
-            const newEdge = {
-              id: `edge-${Date.now()}-${index}`,
-              source: nodeData.id,
-              target: newNodeId,
-              type: 'default' as const,
-              style: { stroke: '#8b5cf6', strokeWidth: 2 },
-            };
-            setEdges((eds) => [...eds, newEdge]);
-
-            // Save edge to DB if authenticated
-            if (user) {
-              saveEdge(nodeData.id, newNodeId, user.id);
-            }
-          }
-        }, 100 * index);
-      });
+        // Save edge to DB if authenticated
+        if (user) {
+          await saveEdge(nodeData.id, newNodeId, user.id);
+        }
+      }
 
     } finally {
       setIsLoadingRecommendations(false);
