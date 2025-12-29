@@ -428,252 +428,65 @@ export default function MindMapPage() {
   const [showEdgeContextMenu, setShowEdgeContextMenu] = useState(false);
   const [edgeContextMenuPosition, setEdgeContextMenuPosition] = useState({ x: 0, y: 0 });
 
-  // Handle accepting a recommendation (clicking Accept button)
-  const handleAcceptRecommendation = useCallback(async (recommendation: AiRecommendation, nodeId: string) => {
-    console.log('handleAcceptRecommendation called with:', { recommendation, nodeId, selectedNode, originalSelectedNode });
-    console.log('Current nodes:', nodes);
-    
-    // Use originalSelectedNode if available, otherwise fall back to selectedNode
-    const sourceNode = originalSelectedNode || selectedNode;
-    
-    if (!sourceNode) {
-      console.log('No source node available, returning');
-      return;
-    }
-    
-    // Find the accepted recommendation node to keep its position
-    const acceptedNode = nodes.find(n => n.id === nodeId);
-    
-    if (!acceptedNode) {
-      console.log('No accepted node found with ID:', nodeId);
-      return;
-    }
-    
-    // Create a shared permanent node ID
-    const permanentNodeId = `node-${Date.now()}`;
-    
-    // Convert the accepted recommendation node to a permanent node
-    const permanentNode: ReactFlowMindMapNode = {
-      id: permanentNodeId,
-      type: 'mindMapNode',
-      position: acceptedNode.position,
-      data: {
-        title: recommendation.title,
-        type: recommendation.type,
-        description: recommendation.description,
-        onClick: () => handleNodeClick({
-          id: permanentNodeId,
-          title: recommendation.title,
-          type: recommendation.type,
-          description: recommendation.description,
-          position: acceptedNode.position,
-        }),
-      },
-    };
-    
-    // Remove all recommendation nodes and add the permanent node
-    setNodes((currentNodes) => {
-      const filteredNodes = currentNodes.filter(node => !node.data.isRecommendation);
-      return [...filteredNodes, permanentNode];
-    });
-    
-    setFilteredNodes((currentNodes) => {
-      const filteredNodes = currentNodes.filter(node => !node.data.isRecommendation);
-      return [...filteredNodes, permanentNode];
-    });
-    
-    // Remove recommendation edges and add solid edge
-    setEdges((currentEdges) => {
-      const filteredEdges = currentEdges.filter(edge => !edge.style?.strokeDasharray);
-      
-      const newEdge = {
-        id: `edge-${Date.now()}`,
-        source: sourceNode.id,
-        target: permanentNodeId,
-        type: 'default' as const,
-        style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      };
-      
-      return [...filteredEdges, newEdge];
-    });
-    
-    // Save to Supabase if user is authenticated
-    if (user) {
-      try {
-        const nodeData = {
-          title: recommendation.title,
-          type: recommendation.type,
-          description: recommendation.description,
-          position: acceptedNode.position,
-        };
-        
-        const savedNode = await saveNode(nodeData, user.id);
-        if (savedNode) {
-          // Update the node with the saved ID from Supabase
-          setNodes((nds) => nds.map(n => n.id === permanentNodeId ? { ...n, id: savedNode.id } : n));
-          setFilteredNodes((nds) => nds.map(n => n.id === permanentNodeId ? { ...n, id: savedNode.id } : n));
-          
-          // Save the edge to Supabase
-          await saveEdge(sourceNode.id, savedNode.id, user.id);
-        }
-      } catch (err) {
-        console.error('Failed to save accepted node to Supabase:', err);
-      }
-    }
-    
-    // Clear LabBuddy recommendations state
-    setAiRecommendations([]);
-    setShowAiRecommendations(false);
-  }, [selectedNode, originalSelectedNode, nodes, user, setNodes, setFilteredNodes, setEdges, handleNodeClick]);
 
   const handleGetAiRecommendationsForNode = useCallback(async (nodeData: MindMapNodeType) => {
     setIsLoadingRecommendations(true);
-    // Store the original selected node for accept functionality
-    setOriginalSelectedNode(nodeData);
     try {
-      // Get LabBuddy recommendations based on the provided node and all nodes
+      // Get LabBuddy recommendations
       const response = await getAiRecommendations(nodeData, nodes);
-      
-      // Add recommendations as regular nodes with dotted edges
-      const timestamp = Date.now();
-      response.recommendations.forEach((rec, index) => {
-        const newNodeId = `rec-${timestamp}-${index}`;
-        
-        // Position all suggestions below the selected node in a horizontal line
-        const spacing = 200; // Horizontal spacing between suggestions
-        const verticalOffset = 200; // Distance below the selected node
-        const numRecs = response.recommendations.length;
-        
-        // Center the suggestions horizontally around the selected node
-        const totalWidth = (numRecs - 1) * spacing;
-        const startX = nodeData.position.x - (totalWidth / 2);
-        
+
+      // Position suggestions below the selected node in a horizontal line
+      const spacing = 200;
+      const verticalOffset = 200;
+      const numRecs = response.recommendations.length;
+      const totalWidth = (numRecs - 1) * spacing;
+      const startX = nodeData.position.x - (totalWidth / 2);
+
+      // Create regular nodes directly using addNode
+      response.recommendations.forEach(async (rec, index) => {
         const x = startX + (index * spacing);
         const y = nodeData.position.y + verticalOffset;
-        
-        const newNode: ReactFlowMindMapNode = {
-          id: newNodeId,
-          type: 'mindMapNode',
+
+        // Use the existing addNode function to create a regular node
+        const nodeToAdd = {
+          title: rec.title,
+          type: rec.type,
+          description: rec.description,
           position: { x, y },
-          data: {
-            title: rec.title,
-            type: rec.type,
-            description: rec.description,
-            isRecommendation: true,
-            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
-            onAccept: () => handleAcceptRecommendation(rec, newNodeId),
-            // Explicitly omit onDelete and onAiRecommend to hide those buttons
-          },
         };
-        
-        // Add the recommended node
-        setNodes((nds) => [...nds, newNode]);
-        
-        // Create dotted edge from selected node to recommended node
-        const newEdge = {
-          id: `rec-edge-${timestamp}-${index}`,
-          source: nodeData.id,
-          target: newNodeId,
-          type: 'default' as const,
-          style: { 
-            stroke: '#8b5cf6', 
-            strokeWidth: 2, 
-            strokeDasharray: '5,5',
-            opacity: 0.7
-          },
-          animated: true,
-        };
-        setEdges((eds) => [...eds, newEdge]);
+
+        await addNode(nodeToAdd);
+
+        // Add edge after a small delay to ensure node exists
+        setTimeout(() => {
+          const newNodeId = nodes.find(n =>
+            n.data.title === rec.title &&
+            n.position.x === x &&
+            n.position.y === y
+          )?.id;
+
+          if (newNodeId) {
+            const newEdge = {
+              id: `edge-${Date.now()}-${index}`,
+              source: nodeData.id,
+              target: newNodeId,
+              type: 'default' as const,
+              style: { stroke: '#8b5cf6', strokeWidth: 2 },
+            };
+            setEdges((eds) => [...eds, newEdge]);
+
+            // Save edge to DB if authenticated
+            if (user) {
+              saveEdge(nodeData.id, newNodeId, user.id);
+            }
+          }
+        }, 100 * index);
       });
-      
-      // Store recommendations for click handling
-      setAiRecommendations(response.recommendations.map((rec, index) => ({
-        ...rec,
-        nodeId: `rec-${timestamp}-${index}`
-      })));
-      
-    } catch (error) {
-      console.error('Failed to get AI recommendations:', error);
-      // Fallback to simple recommendations
-      const fallbackRecs = [
-        {
-          title: 'Related Research',
-          type: 'Concept' as const,
-          description: 'A related concept that builds upon the selected node.',
-          reasoning: 'This is a fallback recommendation when AI recommendations fail.'
-        },
-        {
-          title: 'Test Paper',
-          type: 'Paper' as const,
-          description: 'A test paper recommendation.',
-          reasoning: 'This is a test paper recommendation.'
-        },
-        {
-          title: 'Test Dataset',
-          type: 'Dataset' as const,
-          description: 'A test dataset recommendation.',
-          reasoning: 'This is a test dataset recommendation.'
-        }
-      ];
-      
-      // Add fallback recommendations as nodes
-      const timestamp = Date.now();
-      fallbackRecs.forEach((rec, index) => {
-        const newNodeId = `rec-${timestamp}-${index}`;
-        
-        // Position all suggestions below the selected node in a horizontal line
-        const spacing = 200; // Horizontal spacing between suggestions
-        const verticalOffset = 200; // Distance below the selected node
-        const numRecs = fallbackRecs.length;
-        
-        // Center the suggestions horizontally around the selected node
-        const totalWidth = (numRecs - 1) * spacing;
-        const startX = nodeData.position.x - (totalWidth / 2);
-        
-        const x = startX + (index * spacing);
-        const y = nodeData.position.y + verticalOffset;
-        
-        const newNode: ReactFlowMindMapNode = {
-          id: newNodeId,
-          type: 'mindMapNode',
-          position: { x, y },
-          data: {
-            title: rec.title,
-            type: rec.type,
-            description: rec.description,
-            isRecommendation: true,
-            onClick: () => handleNodeClick({ id: newNodeId, data: { title: rec.title, type: rec.type, description: rec.description }, position: { x, y } }),
-            onAccept: () => handleAcceptRecommendation(rec, newNodeId),
-            // Explicitly omit onDelete and onAiRecommend to hide those buttons
-          },
-        };
-        
-        setNodes((nds) => [...nds, newNode]);
-        
-        const newEdge = {
-          id: `rec-edge-${timestamp}-${index}`,
-          source: nodeData.id,
-          target: newNodeId,
-          type: 'default' as const,
-          style: { 
-            stroke: '#8b5cf6', 
-            strokeWidth: 2, 
-            strokeDasharray: '5,5',
-            opacity: 0.7
-          },
-          animated: true,
-        };
-        setEdges((eds) => [...eds, newEdge]);
-      });
-      
-      setAiRecommendations(fallbackRecs.map((rec, index) => ({
-        ...rec,
-        nodeId: `rec-${timestamp}-${index}`
-      })));
+
     } finally {
       setIsLoadingRecommendations(false);
     }
-  }, [nodes, setNodes, setEdges, handleNodeClick, handleAcceptRecommendation]);
+  }, [nodes, addNode, user, setEdges]);
 
   const handleGetAiRecommendations = useCallback(async () => {
     if (!selectedNode) {
@@ -721,9 +534,8 @@ export default function MindMapPage() {
     data: {
       ...node.data,
       onClick: () => handleNodeClick(node),
-      // Only add delete and AI recommend to non-recommendation nodes
-      onDelete: !node.data.isRecommendation ? () => handleDeleteNode(node.id) : undefined,
-      onAiRecommend: !node.data.isRecommendation ? () => {
+      onDelete: () => handleDeleteNode(node.id),
+      onAiRecommend: () => {
         const nodeData = {
           id: node.id,
           title: node.data.title,
@@ -733,7 +545,7 @@ export default function MindMapPage() {
         };
         setSelectedNode(nodeData);
         handleGetAiRecommendationsForNode(nodeData);
-      } : undefined,
+      },
     },
   }));
 
@@ -1100,10 +912,25 @@ export default function MindMapPage() {
               >
                 <Background color="#94a3b8" gap={16} />
                 <Controls className="bg-card border border-border rounded-lg shadow-sm" />
-                <MiniMap 
+                <MiniMap
                   className="bg-card border border-border rounded-lg"
                   nodeColor={() => '#F0F0F0'}
                 />
+
+                {/* AI Loading Overlay */}
+                {isLoadingRecommendations && (
+                  <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 pointer-events-none">
+                    <div className="bg-white rounded-lg shadow-2xl p-6 flex flex-col items-center gap-3">
+                      <div className="relative">
+                        <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium text-gray-700">Generating AI suggestions...</p>
+                    </div>
+                  </div>
+                )}
               </ReactFlow>
             )}
 

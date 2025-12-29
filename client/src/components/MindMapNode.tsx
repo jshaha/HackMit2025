@@ -13,9 +13,6 @@ interface MindMapNodeProps {
     onClick: () => void;
     onDelete?: () => void;
     onAiRecommend?: () => void;
-    isRecommendation?: boolean;
-    reasoning?: string;
-    onAccept?: () => void;
   };
   id: string;
 }
@@ -48,43 +45,30 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
       />
       <div className="relative group">
         {/* Main Node */}
-        <div 
+        <div
           className={cn(
-            'rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md relative',
+            'rounded-full cursor-pointer transition-all duration-200 hover:shadow-lg flex flex-col items-center justify-center hover:scale-105 shadow-md relative w-20 h-20',
             'border-2 text-foreground',
-            nodeTypeColors[data.type],
-            data.isRecommendation ? 'w-24 h-24 border-dashed border-purple-400 bg-purple-50' : 'w-20 h-20'
+            nodeTypeColors[data.type]
           )}
           style={{
-            backgroundColor: data.isRecommendation ? '#F3E8FF' : '#F0F0F0',
-            borderColor: data.isRecommendation ? '#8b5cf6' :
-                        data.type === 'Concept' ? '#C2F8CB' :
+            backgroundColor: '#F0F0F0',
+            borderColor: data.type === 'Concept' ? '#C2F8CB' :
                         data.type === 'Paper' ? '#8367C7' :
                         '#5603AD'
           }}
           onClick={data.onClick}
           data-testid={`node-${data.type.toLowerCase()}-${data.title.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <div className={cn(
-            "font-semibold text-center leading-tight text-gray-700 whitespace-nowrap absolute left-1/2 transform -translate-x-1/2",
-            data.isRecommendation ? "text-sm top-7" : "text-xs top-6"
-          )}>
+          <div className="font-semibold text-center leading-tight text-gray-700 whitespace-nowrap absolute left-1/2 transform -translate-x-1/2 text-xs top-6">
             {data.title}
           </div>
-          <div className={cn(
-            "text-center opacity-90 text-gray-600 absolute left-1/2 transform -translate-x-1/2",
-            data.isRecommendation ? "text-xs bottom-6" : "text-[10px] bottom-5"
-          )}>
+          <div className="text-center opacity-90 text-gray-600 absolute left-1/2 transform -translate-x-1/2 text-[10px] bottom-5">
             {data.type}
           </div>
-          {data.isRecommendation && (
-            <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-30">
-              LabBuddy Suggestion
-            </div>
-          )}
         </div>
 
-        {/* Hover Delete Button - Left */}
+        {/* Hover Delete Button */}
         {data.onDelete && (
           <Button
             variant="destructive"
@@ -99,24 +83,7 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           </Button>
         )}
 
-        {/* Accept Button for Recommendations */}
-        {data.isRecommendation && data.onAccept && (
-          <Button
-            variant="default"
-            size="sm"
-            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-lg z-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              data.onAccept?.();
-            }}
-            data-testid={`accept-recommendation-${id}`}
-          >
-            Accept
-          </Button>
-        )}
-
-        {/* LabBuddy Recommendation Button - Right */}
+        {/* AI Recommendation Button */}
         {data.onAiRecommend && (
           <Button
             variant="secondary"
