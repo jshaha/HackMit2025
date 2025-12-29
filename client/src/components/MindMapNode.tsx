@@ -104,9 +104,10 @@ export default function MindMapNode({ data, id }: MindMapNodeProps) {
           <Button
             variant="default"
             size="sm"
-            className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded shadow-lg z-20"
+            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded shadow-lg z-50"
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               data.onAccept?.();
             }}
             data-testid={`accept-recommendation-${id}`}

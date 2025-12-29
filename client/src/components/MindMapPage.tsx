@@ -97,6 +97,45 @@ const initialEdges = [
   },
 ];
 
+// Helper function to check if two nodes overlap
+const checkNodeOverlap = (pos1: { x: number; y: number }, pos2: { x: number; y: number }, minDistance = 100): boolean => {
+  const dx = pos1.x - pos2.x;
+  const dy = pos1.y - pos2.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  return distance < minDistance;
+};
+
+// Helper function to find a non-overlapping position
+const findNonOverlappingPosition = (
+  desiredPosition: { x: number; y: number },
+  existingNodes: ReactFlowMindMapNode[],
+  excludeNodeId?: string
+): { x: number; y: number } => {
+  let position = { ...desiredPosition };
+  const maxAttempts = 20;
+  let attempt = 0;
+
+  while (attempt < maxAttempts) {
+    const hasOverlap = existingNodes.some(node => {
+      if (node.id === excludeNodeId) return false;
+      return checkNodeOverlap(position, node.position);
+    });
+
+    if (!hasOverlap) return position;
+
+    // Try positions in a spiral pattern
+    const angle = (attempt / maxAttempts) * Math.PI * 2;
+    const radius = 50 + attempt * 10;
+    position = {
+      x: desiredPosition.x + Math.cos(angle) * radius,
+      y: desiredPosition.y + Math.sin(angle) * radius,
+    };
+    attempt++;
+  }
+
+  return position;
+};
+
 export default function MindMapPage() {
   const { user, isAuthenticated } = useSupabaseAuth();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -721,12 +760,19 @@ export default function MindMapPage() {
       
       <PanelGroup direction="horizontal" className="h-full">
         <Panel defaultSize={20} minSize={15} maxSize={30}>
-          <AddNodeSidebar 
+          <AddNodeSidebar
             onAddNode={addNode}
             onSearch={handleSearch}
             onAskAi={handleAskAi}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            nodes={nodes.map(n => ({
+              id: n.id,
+              title: n.data.title,
+              type: n.data.type,
+              description: n.data.description,
+              position: n.position
+            }))}
           />
         </Panel>
         
@@ -1027,6 +1073,15 @@ export default function MindMapPage() {
                 onPaneClick={() => setSelectedNode(null)}
                 onEdgeClick={(event, edge) => handleEdgeClick(event, edge.id)}
                 onNodeDragStop={(_, node) => {
+                  // Check for overlaps and adjust position
+                  const adjustedPosition = findNonOverlappingPosition(node.position, nodes, node.id);
+
+                  if (adjustedPosition.x !== node.position.x || adjustedPosition.y !== node.position.y) {
+                    // Update node position in React Flow
+                    setNodes((nds) => nds.map(n => n.id === node.id ? { ...n, position: adjustedPosition } : n));
+                    node.position = adjustedPosition;
+                  }
+
                   if (!user) return;
                   const current = nodes.find(n => n.id === node.id);
                   if (!current) return;
@@ -1036,7 +1091,7 @@ export default function MindMapPage() {
                       title: current.data.title,
                       type: current.data.type,
                       description: current.data.description,
-                      position: node.position,
+                      position: adjustedPosition,
                     },
                     user.id,
                   );
