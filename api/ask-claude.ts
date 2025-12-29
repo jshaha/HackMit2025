@@ -12,10 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get API key from environment variables only
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY;
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
   if (!ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: "Anthropic API key not configured" });
+    console.error('ANTHROPIC_API_KEY not found in environment variables');
+    return res.status(500).json({ error: "Anthropic API key not configured. Please add ANTHROPIC_API_KEY to your Vercel environment variables." });
   }
 
   try {
