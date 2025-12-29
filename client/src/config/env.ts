@@ -2,19 +2,18 @@
 const env = {
   // API
   API_URL: import.meta.env.VITE_API_URL as string,
-  
+
   // Application
   NODE_ENV: import.meta.env.MODE as string,
-  
+
   // Optional features
   ENABLE_ANALYTICS: (import.meta.env.VITE_ENABLE_ANALYTICS || 'false') === 'true',
-  
-  // Third-party services
-  OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY as string,
+
+  // Third-party services - Only include public/safe keys here
+  // NEVER add private API keys with VITE_ prefix - they get exposed to the browser!
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL as string,
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-  ANTHROPIC_API_KEY: (import.meta.env.VITE_ANTHROPIC_API_KEY || import.meta.env.ANTHROPIC_API_KEY) as string,
-  
+
   // Any other environment variables
   ...import.meta.env
 } as const;

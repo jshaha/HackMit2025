@@ -4,22 +4,31 @@ This project requires several environment variables to be configured. Create a `
 
 ## Required Environment Variables
 
-### Anthropic API
+### Anthropic API (Server-side ONLY)
 ```bash
+# DO NOT prefix with VITE_ - this would expose your API key to the browser!
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
-VITE_ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
-### Auth0 Authentication
+### Supabase (Client-side - safe to expose)
 ```bash
-VITE_AUTH0_DOMAIN=your_auth0_domain_here
-VITE_AUTH0_CLIENT_ID=your_auth0_client_id_here
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
 
 ### API Configuration
 ```bash
 VITE_API_URL=http://localhost:5000
 ```
+
+## Security Best Practices
+
+**CRITICAL**: Never use the `VITE_` prefix for private API keys!
+
+- ✅ `ANTHROPIC_API_KEY` - Correct (server-side only)
+- ❌ `VITE_ANTHROPIC_API_KEY` - WRONG (exposed to browser)
+
+Variables prefixed with `VITE_` are bundled into your client-side JavaScript and can be viewed by anyone in their browser's developer tools.
 
 ## How to Get API Keys
 

@@ -30,14 +30,21 @@ After deploying, you need to add your environment variables in the Vercel dashbo
 2. Click on "Settings" → "Environment Variables"
 3. Add the following variables:
 
-### Required Variables:
-- `ANTHROPIC_API_KEY` - Your Anthropic API key
-- `VITE_ANTHROPIC_API_KEY` - Your Anthropic API key (for client-side)
+### Required Variables (Server-side only - secure):
+- `ANTHROPIC_API_KEY` - Your Anthropic API key (DO NOT prefix with VITE_)
+
+### Required Variables (Client-side - safe to expose):
 - `VITE_SUPABASE_URL` - Your Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key (this is public by design)
 
 ### Optional Variables:
 - `NODE_ENV` - Set to `production`
+
+### Important Security Note:
+**NEVER** add `VITE_` prefix to private API keys like `ANTHROPIC_API_KEY`. Variables prefixed with `VITE_` are exposed to the browser and can be stolen by anyone viewing your website. Only use `VITE_` prefix for:
+- Public API endpoints
+- Public configuration values
+- Supabase anon keys (designed to be public, protected by Row Level Security)
 
 ## What Changed for Vercel
 
