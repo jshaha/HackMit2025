@@ -721,9 +721,9 @@ export default function MindMapPage() {
     data: {
       ...node.data,
       onClick: () => handleNodeClick(node),
-      onDelete: () => handleDeleteNode(node.id),
-      onAiRecommend: () => {
-        // Set the node as selected first, then get recommendations
+      // Only add delete and AI recommend to non-recommendation nodes
+      onDelete: !node.data.isRecommendation ? () => handleDeleteNode(node.id) : undefined,
+      onAiRecommend: !node.data.isRecommendation ? () => {
         const nodeData = {
           id: node.id,
           title: node.data.title,
@@ -732,10 +732,8 @@ export default function MindMapPage() {
           position: node.position,
         };
         setSelectedNode(nodeData);
-        
-        // Call handleGetAiRecommendations with the nodeData directly
         handleGetAiRecommendationsForNode(nodeData);
-      },
+      } : undefined,
     },
   }));
 

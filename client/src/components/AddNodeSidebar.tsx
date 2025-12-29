@@ -21,6 +21,7 @@ interface AddNodeSidebarProps {
 
 export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: AddNodeSidebarProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const form = useForm<InsertMindMapNode>({
     resolver: zodResolver(insertMindMapNodeSchema),
@@ -32,10 +33,37 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: 
     }
   });
 
+  const generateDescription = async () => {
+    const title = form.getValues('title');
+    const type = form.getValues('type');
+
+    if (!title) {
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, type }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate description');
+
+      const data = await response.json();
+      form.setValue('description', data.description);
+    } catch (error) {
+      console.error('Error generating description:', error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const onSubmit = async (data: InsertMindMapNode) => {
     setIsSubmitting(true);
     console.log('Adding node:', data);
-    
+
     // Add some randomness to position to avoid overlap
     const nodeData = {
       ...data,
@@ -44,7 +72,7 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: 
         y: Math.random() * 300 + 100
       }
     };
-    
+
     onAddNode(nodeData);
     form.reset();
     setIsSubmitting(false);
@@ -117,9 +145,22 @@ export default function AddNodeSidebar({ onAddNode, onSearch, onAskAi, nodes }: 
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-medium">Description</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-sm font-medium">Description</FormLabel>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-purple-600 hover:text-purple-700"
+                        onClick={generateDescription}
+                        disabled={isGeneratingDescription || !form.watch('title')}
+                      >
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        {isGeneratingDescription ? 'Generating...' : 'AI Generate'}
+                      </Button>
+                    </div>
                     <FormControl>
-                      <Textarea 
+                      <Textarea
                         placeholder="Describe this node..."
                         className="resize-none min-h-20"
                         data-testid="textarea-description"
