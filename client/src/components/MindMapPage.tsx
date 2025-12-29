@@ -346,16 +346,16 @@ export default function MindMapPage() {
   }, [handleTitleSave, handleTitleCancel]);
 
   // Handle node deletion with edge reconnection
-  const handleDeleteNode = useCallback((nodeId: string) => {
+  const handleDeleteNode = useCallback(async (nodeId: string) => {
     // Find edges connected to this node
-    const connectedEdges = edges.filter(edge => 
+    const connectedEdges = edges.filter(edge =>
       edge.source === nodeId || edge.target === nodeId
     );
-    
+
     // Find parent and child nodes
     const parentEdges = connectedEdges.filter(edge => edge.target === nodeId);
     const childEdges = connectedEdges.filter(edge => edge.source === nodeId);
-    
+
     // Create new edges connecting parents to children
     const newEdges: any[] = [];
     parentEdges.forEach(parentEdge => {
@@ -369,7 +369,7 @@ export default function MindMapPage() {
         });
       });
     });
-    
+
     // Update state
     setNodes(nodes => nodes.filter(node => node.id !== nodeId));
     setEdges(edges => [
@@ -377,7 +377,27 @@ export default function MindMapPage() {
       ...newEdges
     ]);
     setSelectedNode(null); // Close sidebar
-  }, [edges, setNodes, setEdges]);
+
+    // Delete from database if user is authenticated
+    if (user) {
+      try {
+        await deleteNode(nodeId, user.id);
+
+        // Delete connected edges from database
+        const edgeIdsToDelete = connectedEdges.map(edge => edge.id);
+        for (const edgeId of edgeIdsToDelete) {
+          await deleteEdge(edgeId, user.id);
+        }
+
+        // Save new reconnection edges to database
+        for (const edge of newEdges) {
+          await saveEdge(edge.source, edge.target, user.id);
+        }
+      } catch (err) {
+        console.error('Failed to delete node from database:', err);
+      }
+    }
+  }, [edges, setNodes, setEdges, user]);
 
   // Handle node editing
   const handleEditNode = useCallback(() => {
